@@ -263,6 +263,8 @@ static void car_control_tim_init(void)
     TIM_MasterConfigTypeDef sMasterConfig = {0};
     TIM_OC_InitTypeDef sConfigOC = {0};
 
+    __HAL_RCC_TIM2_CLK_ENABLE();
+
     car_control_tim.Instance = TIM2;
     car_control_tim.Init.Prescaler = 0;
     car_control_tim.Init.CounterMode = TIM_COUNTERMODE_UP;
@@ -314,4 +316,5 @@ static void car_control_tim_init(void)
 static void car_control_tim_deinit(void)
 {
     HAL_TIM_PWM_DeInit(&car_control_tim);
+    __HAL_RCC_TIM2_CLK_DISABLE();
 }
