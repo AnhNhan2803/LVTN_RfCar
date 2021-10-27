@@ -39,12 +39,10 @@
 /******************************************************************************
 * VARIABLE DEFINITIONS
 *******************************************************************************/
-#if (LOG_DEBUG_EN)
 UART_HandleTypeDef huart1;
-
-#endif
-
+#if defined(__GNUC__)
 static char tx_buff[LOG_DEBUG_UART_MAX_BUF];
+#endif
 
 /******************************************************************************
 * FUNCTION PROTOTYPES
@@ -134,6 +132,7 @@ void log_debug_deinit(void)
 *******************************************************************************/
 void log_debug_gpio_init(void)
 {
+#if (LOG_DEBUG_EN)
     GPIO_InitTypeDef GPIO_InitStruct;
 
     /**USART1 GPIO Configuration
@@ -149,6 +148,7 @@ void log_debug_gpio_init(void)
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(LOG_DEBUG_UART_RX_PORT, &GPIO_InitStruct);
+#endif
 }
 
 /******************************************************************************
@@ -160,6 +160,7 @@ void log_debug_gpio_init(void)
 *******************************************************************************/
 void log_debug_uart_init(void)
 {
+#if (LOG_DEBUG_EN)
     __HAL_RCC_USART1_CLK_ENABLE();
 
     huart1.Instance = LOG_DEBUG_UART_INSTANCE;
@@ -175,6 +176,7 @@ void log_debug_uart_init(void)
     {
         Error_Handler();
     }
+#endif
 }
 
 /******************************************************************************
@@ -186,8 +188,10 @@ void log_debug_uart_init(void)
 *******************************************************************************/
 void log_debug_gpio_deinit(void)
 {
+#if (LOG_DEBUG_EN)
     HAL_GPIO_DeInit(LOG_DEBUG_UART_RX_PORT, LOG_DEBUG_UART_TX_PIN);
     HAL_GPIO_DeInit(LOG_DEBUG_UART_RX_PORT, LOG_DEBUG_UART_RX_PIN);
+#endif
 }
 
 /******************************************************************************
@@ -199,12 +203,14 @@ void log_debug_gpio_deinit(void)
 *******************************************************************************/
 void log_debug_uart_deinit(void)
 {
+#if (LOG_DEBUG_EN)
     __HAL_RCC_USART1_CLK_DISABLE();
 
     if (HAL_UART_DeInit(&huart1) != HAL_OK)
     {
         Error_Handler();
     }
+#endif
 }
 
 

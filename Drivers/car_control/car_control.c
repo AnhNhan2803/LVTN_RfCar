@@ -26,10 +26,10 @@
 #define MOTOR_RIGHT2_START()                (HAL_GPIO_WritePin(MOTOR_RIGHT2_GPIO_Port, MOTOR_RIGHT2_Pin, GPIO_PIN_RESET))
 #else
 // This mode control the motors completely with PWM
-#define MOTOR_LEFT1_CONTROL(x)     __HAL_TIM_SET_COMPARE(&car_control_tim, TIM_CHANNEL_1, x)
-#define MOTOR_LEFT2_CONTROL(x)     __HAL_TIM_SET_COMPARE(&car_control_tim, TIM_CHANNEL_2, x)
-#define MOTOR_RIGHT1_CONTROL(x)    __HAL_TIM_SET_COMPARE(&car_control_tim, TIM_CHANNEL_3, x)
-#define MOTOR_RIGHT2_CONTROL(x)    __HAL_TIM_SET_COMPARE(&car_control_tim, TIM_CHANNEL_4, x)
+#define MOTOR_LEFT1_CONTROL(x)     __HAL_TIM_SET_COMPARE(&car_control_tim, TIM_CHANNEL_1, CAR_CTRL_TIM_PERIOD * x / 100)
+#define MOTOR_LEFT2_CONTROL(x)     __HAL_TIM_SET_COMPARE(&car_control_tim, TIM_CHANNEL_2, CAR_CTRL_TIM_PERIOD * x / 100)
+#define MOTOR_RIGHT1_CONTROL(x)    __HAL_TIM_SET_COMPARE(&car_control_tim, TIM_CHANNEL_3, CAR_CTRL_TIM_PERIOD * x / 100)
+#define MOTOR_RIGHT2_CONTROL(x)    __HAL_TIM_SET_COMPARE(&car_control_tim, TIM_CHANNEL_4, CAR_CTRL_TIM_PERIOD * x / 100)
 #endif
 
 /******************************************************************************
@@ -93,6 +93,10 @@ void car_control_deinit(void)
 *******************************************************************************/
 void car_control_exec_cmd(car_ctrl_t cmd)
 {
+  // TODO: Need to add Power param for control
+  // the duty cycle of PWM for speed changing 
+  // purpose
+
   switch(cmd)
   {
     case CAR_CTRL_MOVE_FORWARD:
@@ -266,11 +270,13 @@ static void car_control_tim_init(void)
     __HAL_RCC_TIM2_CLK_ENABLE();
 
     car_control_tim.Instance = TIM2;
-    car_control_tim.Init.Prescaler = 0;
+    car_control_tim.Init.Prescaler = CAR_CTRL_TIM_PRESCALER - 1;
     car_control_tim.Init.CounterMode = TIM_COUNTERMODE_UP;
-    // Since thee period periodd = 47999 => Ftimer = 48Mhz / (Period + 1)x(Prescaler + 1)
-    // => Ftimer = 1000 Hz
-    car_control_tim.Init.Period = 47999;
+    // Since the period = 499
+    // Prescaler = 47
+    // => Ftimer = 48Mhz / (Period + 1) x (Prescaler + 1)
+    // => Ftimer = 2kHz
+    car_control_tim.Init.Period = CAR_CTRL_TIM_PERIOD - 1;
     car_control_tim.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
     car_control_tim.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
     if (HAL_TIM_PWM_Init(&car_control_tim) != HAL_OK)
@@ -285,7 +291,7 @@ static void car_control_tim_init(void)
     }
     sConfigOC.OCMode = TIM_OCMODE_PWM1;
     // Set duty cycle at default value
-    sConfigOC.Pulse = 100;
+    sConfigOC.Pulse = 0;
     sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
     sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
     if (HAL_TIM_PWM_ConfigChannel(&car_control_tim, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)

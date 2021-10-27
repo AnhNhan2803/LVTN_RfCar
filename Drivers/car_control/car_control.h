@@ -21,6 +21,11 @@
  * CONFIGURATION CONSTANTS
  *******************************************************************************/
 #define USING_FULLY_OUTPUT_PP_MODE    (0)
+// Count up 1us each time
+#define CAR_CTRL_TIM_PRESCALER        (48)
+// Setup period counter of the PWM to 500us
+// => PWM Frequency = 2Kz
+#define CAR_CTRL_TIM_PERIOD           (500)
 
 /******************************************************************************
  * MACROS

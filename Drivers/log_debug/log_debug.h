@@ -17,7 +17,7 @@
 /******************************************************************************
 * CONFIGURATION CONSTANTS
 *******************************************************************************/
-#define LOG_DEBUG_EN          1 // 1: Enable debug log over UART
+#define LOG_DEBUG_EN          0 // 1: Enable debug log over UART
                                 // 0: Disable debug log over UART
 
 #define INFO_LOG_DEBUG_EN     1
@@ -31,8 +31,9 @@
   #define PRINT_INFO_LOG_LINE(...)  printf(__VA_ARGS__);printf("\r\n")
   #define Error_Handler() printf("Error Handler at:%s:%d\r\n", __FILE__, __LINE__)
 #else
-  #define PRINT_INFO_LOG(...)
+  #define PRINT_INFO_LOG(...) 
   #define PRINT_INFO_LOG_LINE(...) 
+  #define Error_Handler(...)
 #endif
 
 #if (ERROR_LOG_DEBUG_EN && LOG_DEBUG_EN)
