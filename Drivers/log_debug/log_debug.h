@@ -17,7 +17,7 @@
 /******************************************************************************
 * CONFIGURATION CONSTANTS
 *******************************************************************************/
-#define LOG_DEBUG_EN          0 // 1: Enable debug log over UART
+#define LOG_DEBUG_EN          1 // 1: Enable debug log over UART
                                 // 0: Disable debug log over UART
 
 #define INFO_LOG_DEBUG_EN     1

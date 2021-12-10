@@ -62,9 +62,9 @@ extern "C" {
 #define NRF24L01_SPI_MOSI_GPIO_Port             GPIOA 
 #define NRF24L01_SPI_CS_Pin                     GPIO_PIN_8
 #define NRF24L01_SPI_CS_GPIO_Port               GPIOA 
-#define NRF24L01_CE_Pin                         GPIO_PIN_1
+#define NRF24L01_CE_Pin                         GPIO_PIN_0
 #define NRF24L01_CE_GPIO_Port                   GPIOB 
-#define NRF24L01_IRQ_Pin                        GPIO_PIN_2
+#define NRF24L01_IRQ_Pin                        GPIO_PIN_1
 #define NRF24L01_IRQ_GPIO_Port                  GPIOB 
 
 // Define GPIOs using for motor interface

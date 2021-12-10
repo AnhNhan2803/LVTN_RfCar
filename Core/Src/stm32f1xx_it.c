@@ -183,7 +183,7 @@ void SysTick_Handler(void)
 /* For the available peripheral interrupt handler names,                      */
 /* please refer to the startup file (startup_stm32f1xx.s).                    */
 /******************************************************************************/
-void EXTI2_IRQHandler(void)
+void EXTI1_IRQHandler(void)
 {
   if(__HAL_GPIO_EXTI_GET_IT(NRF24L01_IRQ_Pin) != RESET)
   {
