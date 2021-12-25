@@ -86,7 +86,8 @@ static void nrf24l01_write_regs(uint8_t reg, uint8_t * pdata, uint32_t length);
  *******************************************************************************/
 SPI_HandleTypeDef nrf24l01_spi;
 // Array stored 4 bytes address for TX/RX communication
-static uint8_t nrf24l01_adrr[NRF24L01_ADDR_WIDTH] = {0x77, 0x35, 0xF0, 0xD3};
+const uint8_t nrf24l01_tx_adrr[NRF24L01_ADDR_WIDTH] = {0xE7, 0xE7, 0xE7};
+static uint8_t nrf24l01_rx_adrr[NRF24L01_ADDR_WIDTH] = {0xC3, 0xC3, 0xC3};
 // Create semaphore for RX data ready synchorize
 static osSemaphoreId_t nrf24l01_data_sem;
 
@@ -126,30 +127,57 @@ void nrf24l01_data_wait_new_data(void)
 *******************************************************************************/
 void nrf24l01_init(void)
 {
+  uint8_t value = 0;
   nrf24l01_gpio_init();
   nrf24l01_spi_init();
   osDelay(2);
-  // Exit the power down mode
-  nrf24l01_enter_power_down_mode(false);
-  osDelay(2);
-  /* Config all parameters here */
-  // Enable data pipe0
-  nrf24l01_enable_rx_address(NRF24L01_DATA_PIPE_0);
-  // Set the address width for TX/RX
-  nrf24l01_set_address_width(NRF24L01_ADDR_WIDTH_4BYTES);
-  // Set TX and RX address
-  nrf24l01_set_rx_address(NRF24L01_DATA_PIPE_0, nrf24l01_adrr, sizeof(nrf24l01_adrr));
-  nrf24l01_set_tx_address(nrf24l01_adrr, sizeof(nrf24l01_adrr));
-  // Enable Dynamic payload length for receiver device
-  // nrf24l01_rx_enable_dynamic_payload_length(NRF24L01_DATA_PIPE_0);
-  // Enable Static payload length for receiver device
-  nrf24l01_set_static_payload_length(NRF24L01_DATA_PIPE_0, NRF24L01_STATIC_PAYLOAD_LEN);
+  
+  nrf24l01_print_all_configurations();
+
+  /* Config all parameters here */ 
+  // Set 1550uS timeout
+  // value = 0x4F;
+  // nrf24l01_write_regs(NRF24L01_REG_SETUP_RETR, &value, sizeof(value));
+  // Set frequency for the RF channel
+  nrf24l01_set_rf_channel_freq(40);
   // Setup the on air data rate
   nrf24l01_set_data_rate(NRF24L01_DR_1MBPS);
+  // Set transmit power for nrf24l01
+  nrf24l01_set_transmit_power(NRF24L01_TX_PWR_0dBm);
+
+  // Enable CRC- 2bytes
+  nrf24l01_set_data_regs(NRF24L01_REG_CONFIG, ~(0x04), 0x04);
+
+  // Set the address width for TX/RX
+  nrf24l01_set_address_width(NRF24L01_ADDR_WIDTH_3BYTES);
+  // Set TX and RX address for opening writing pipe on Data pipe 0
+  // nrf24l01_set_rx_address(NRF24L01_DATA_PIPE_0, nrf24l01_tx_adrr, sizeof(nrf24l01_tx_adrr));
+  // nrf24l01_set_tx_address(nrf24l01_tx_adrr, sizeof(nrf24l01_tx_adrr));
+  // // Set payload size for Writing pipe
+  // nrf24l01_set_payload_size(NRF24L01_DATA_PIPE_0, 10);
+  // Open Reading pipe on Data pipe 1
+  nrf24l01_set_rx_address(NRF24L01_DATA_PIPE_1, nrf24l01_rx_adrr, sizeof(nrf24l01_rx_adrr));
+  // Set payload size for Reading pipe
+  nrf24l01_set_payload_size(NRF24L01_DATA_PIPE_1, 32);
+  nrf24l01_clear_all_flags();
   // Enable interrupt for RX data ready
   nrf24l01_enable_interrupt(NRF24L01_INT_RX_DR_ENABLE);
+  // Flush RX and TX FIFO
+  // nrf24l01_flush_tx_fifo();
+  // nrf24l01_flush_rx_fifo();
 
-  // Enter Rx mode
+  // Set nrf24l01 operation mode as RX  
+  nrf24l01_txrx_control(NEF24L01_TXRX_CTRL_RX_ENABLE);
+
+  // Exit the power down mode
+  nrf24l01_enter_power_down_mode(false);
+
+  // Enable Dynamic payload length
+  nrf24l01_enable_dynamic_payloads();
+  // Enable ACK payload
+  nrf24l01_enable_ack_payload();
+  
+  nrf24l01_print_all_configurations();
   nrf24l01_enter_rx_mode();
 
   nrf24l01_data_sem = osSemaphoreNew(1, 0, NULL);
@@ -175,18 +203,49 @@ void nrf24l01_deinit(void)
 * Output   : None.
 * Return   : None.
 *******************************************************************************/
-void nrf24l01_read_data_fifo(uint8_t * pdata, uint8_t len)
+bool nrf24l01_read_data_fifo(uint8_t * pdata, uint8_t * len)
 {
+  bool ret = true;
   uint8_t read_cmd;
-  uint8_t rx_buff[128]; 
-  read_cmd = NRF24L01_CMD_R_RX_PAYLOAD;
+  uint8_t value;
+  uint8_t rx_buff[32]; 
 
-  NRF24L01_SPI_CS_LOW();
-  HAL_SPI_TransmitReceive(&nrf24l01_spi, &read_cmd, rx_buff, len + 1, NRF24L01_SPI_TIMEOUT);
-  NRF24L01_SPI_CS_HIGH();
-  // TODO: Add max length condition to avoid
-  // buffer overflow
-  memcpy(pdata, &rx_buff[1], len);
+  // Check if it's RX FIOF empty
+  nrf24l01_read_regs(NRF24L01_REG_STATUS, &value, 1);
+  if(((value & NRF24L01_AVAILABLE_PIPES_MASK) >> 1) < NRF24L01_TOTAL_PIPES)
+  {
+    // Get the number of available data in RX FIFO
+    *len = nrf24l01_num_available_data_fifo();
+
+    // Check if broken packet is received
+    if(*len > NRF24L01_MAX_NUM_PACKET)
+    {
+      *len = 0;
+      PRINT_INFO_LOG("RF packet broken");
+      nrf24l01_flush_rx_fifo();
+    }
+    else if(* len == 0)
+    {
+      PRINT_INFO_LOG("LEN = 0");
+      ret = false;
+    }
+    else
+    {
+      read_cmd = NRF24L01_CMD_R_RX_PAYLOAD;
+      NRF24L01_SPI_CS_LOW();
+      HAL_SPI_TransmitReceive(&nrf24l01_spi, &read_cmd, rx_buff, *len + 1, NRF24L01_SPI_TIMEOUT);
+      NRF24L01_SPI_CS_HIGH();
+      // TODO: Add max length condition to avoid
+      // buffer overflow
+      memcpy(pdata, &rx_buff[1], *len);
+    }
+  }
+  else
+  {
+    ret = false;
+  }
+
+  return ret;
 }
 
 /******************************************************************************
@@ -252,11 +311,11 @@ void nrf24l01_enter_power_down_mode(bool en)
 {
   if(en)
   {
-    nrf24l01_set_data_regs(NRF24L01_REG_CONFIG, NEF24L01_EXIT_POWER_DONW_MASK, NEF24L01_EXIT_POWER_DONW_DISABLE);
+    nrf24l01_set_data_regs(NRF24L01_REG_CONFIG, NEF24L01_EXIT_POWER_DONW_MASK, NEF24L01_EXIT_POWER_DONW_ENABLE);
   }
   else
   {
-    nrf24l01_set_data_regs(NRF24L01_REG_CONFIG, NEF24L01_EXIT_POWER_DONW_MASK, NEF24L01_EXIT_POWER_DONW_ENABLE);
+    nrf24l01_set_data_regs(NRF24L01_REG_CONFIG, NEF24L01_EXIT_POWER_DONW_MASK, NEF24L01_EXIT_POWER_DONW_DISABLE);
   }
 }
 
@@ -284,7 +343,21 @@ void nrf24l01_enter_rx_mode(void)
 {
   // Set CE pin to HIGH and PRIM_RX to 1
   NRF24L01_SPI_CE_HIGH();
-  nrf24l01_txrx_control(NEF24L01_TXRX_CTRL_RX_ENABLE);
+}
+
+/******************************************************************************
+* Function : void nrf24l01_exit_rx_mode(void)
+* Brief    : Exit RX mode.
+* Input    : None.
+* Output   : None.
+* Return   : None.
+*******************************************************************************/
+void nrf24l01_exit_rx_mode(void)
+{
+  NRF24L01_SPI_CE_LOW();
+  nrf24l01_flush_tx_fifo();
+  nrf24l01_flush_rx_fifo();
+  osDelay(10);
 }
 
 /******************************************************************************
@@ -348,7 +421,7 @@ void nrf24l01_set_data_rate(nrf24l01_dr_t data_rate)
 * Output   : None.
 * Return   : None.
 *******************************************************************************/
-void nrf24l01_set_transmit_power(nrf24l01_tx_pwr_t tx_pwr)
+void nrf24l01_set_transmit_power(uint8_t tx_pwr)
 {
   nrf24l01_set_data_regs(NRF24L01_REG_RF_SETUP, NEF24L01_RF_TX_PWR_MASK, (uint8_t)tx_pwr);
 }
@@ -362,7 +435,7 @@ void nrf24l01_set_transmit_power(nrf24l01_tx_pwr_t tx_pwr)
 *******************************************************************************/
 void nrf24l01_set_rf_channel_freq(uint8_t value)
 {
-  nrf24l01_set_data_regs(NRF24L01_REG_RF_CH, (uint8_t)NRF24L01_CHANNEL_FREQ_MASK, value);
+  nrf24l01_write_regs(NRF24L01_REG_RF_CH, &value, 1);
 }
 
 /******************************************************************************
@@ -426,38 +499,6 @@ void nrf24l01_set_static_payload_length(rx_data_pipe_t data_pipe, uint8_t len)
 }
 
 /******************************************************************************
-* Function : void nrf24l01_rx_enable_dynamic_payload_length(rx_data_pipe_t data_pipe)
-* Brief    : enable RX dynamic payload length mode.
-* Input    : None.
-* Output   : None.
-* Return   : None.
-*******************************************************************************/
-void nrf24l01_rx_enable_dynamic_payload_length(rx_data_pipe_t data_pipe)
-{
-  // Firstly, Enable the EN_DPL bit in FEATURE register
-  nrf24l01_set_data_regs(NRF24L01_REG_FEATURE, NRF24L01_DYNAMIC_PAYLOAD_MASK, NRF24L01_DYNAMIC_PAYLOAD_ENABLE);
-
-  // Set the corresponding bii to DYNPD register
-  nrf24l01_set_data_regs(NRF24L01_REG_DYNPD, ~(1 << data_pipe), 0x01);
-}
-
-/******************************************************************************
-* Function : void nrf24l01_tx_enable_dynamic_payload_length(void)
-* Brief    : enable TX dynamic payload length mode.
-* Input    : None.
-* Output   : None.
-* Return   : None.
-*******************************************************************************/
-void nrf24l01_tx_enable_dynamic_payload_length(void)
-{
-  // Firstly, Enable the EN_DPL bit in FEATURE register
-  nrf24l01_set_data_regs(NRF24L01_REG_FEATURE, NRF24L01_DYNAMIC_PAYLOAD_MASK, NRF24L01_DYNAMIC_PAYLOAD_ENABLE);
-
-  // Set the DPL_P0 bit to HIGH to enable the DPL feature in TX side
-  nrf24l01_set_data_regs(NRF24L01_REG_DYNPD, NRF24L01_DYNAMIC_PAYLOAD_P0_MASK, 0x01);
-}
-
-/******************************************************************************
 * Function : uint8_t nrf24l01_num_available_data_fifo(void)
 * Brief    : Read number of available data in .
 * Input    : None.
@@ -491,21 +532,208 @@ void nrf24l01_enable_interrupt(uint8_t int_type)
 {
   switch(int_type)
   {
-    case NRF24L01_INT_RX_DR_ENABLE:
+    case 0x00:
       nrf24l01_set_data_regs(NRF24L01_REG_CONFIG, NRF24L01_INT_RX_DR_MASK, NRF24L01_INT_RX_DR_ENABLE);
+      nrf24l01_set_data_regs(NRF24L01_REG_CONFIG, NRF24L01_INT_TX_DS_MASK, NRF24L01_INT_TX_DS_DISABLE);
+      nrf24l01_set_data_regs(NRF24L01_REG_CONFIG, NRF24L01_INT_MAX_RT_MASK, NRF24L01_INT_MAX_RT_DISABLE);
       break;
 
-    case NRF24L01_INT_TX_DS_ENABLE:
+    case 0x01:
       nrf24l01_set_data_regs(NRF24L01_REG_CONFIG, NRF24L01_INT_TX_DS_MASK, NRF24L01_INT_TX_DS_ENABLE);
       break;
 
-    case NRF24L01_INT_MAX_RT_ENABLE:
+    case 0x02:
       nrf24l01_set_data_regs(NRF24L01_REG_CONFIG, NRF24L01_INT_MAX_RT_MASK, NRF24L01_INT_MAX_RT_ENABLE);
       break;
 
     default:
       break;
   }
+}
+
+/******************************************************************************
+* Function : void nrf24l01_set_payload_size(uint32_t size)
+* Brief    : Set payload size for NRF24L01.
+* Input    : None.
+* Output   : None.
+* Return   : None.
+*******************************************************************************/
+void nrf24l01_set_payload_size(rx_data_pipe_t data_pipe, uint32_t size)
+{
+  nrf24l01_set_data_regs(NRF24L01_REG_RX_PW_P0 + data_pipe, ~(0x3F), size);
+}
+
+/******************************************************************************
+* Function : void nrf24l01_set_payload_size(uint32_t size)
+* Brief    : Set payload size for NRF24L01.
+* Input    : None.
+* Output   : None.
+* Return   : None.
+*******************************************************************************/
+void nrf24l01_enable_dynamic_payloads(void)
+{
+  uint8_t value;
+  // Firstly, Enable the EN_DPL bit in FEATURE register
+  nrf24l01_set_data_regs(NRF24L01_REG_FEATURE, NRF24L01_DYNAMIC_PAYLOAD_MASK, NRF24L01_DYNAMIC_PAYLOAD_ENABLE);
+
+  // Check the status of NRF24L01_REG_FEATURE register 
+  // to ensure that the EN_DPL has been set
+  nrf24l01_read_regs(NRF24L01_REG_FEATURE, &value, 1);
+  if((value & 0x04) == 0)
+  {
+    // Failed to set the EN_DPL bit 
+    PRINT_ERROR_LOG("Falied to set the EN_DPL bit in Enable Dynamic payload\r\n");
+  }
+
+  // Enable Dynamic payload length on all data pipes
+  value = 0x3F;
+  nrf24l01_write_regs(NRF24L01_REG_DYNPD, &value, 1);
+}
+
+/******************************************************************************
+* Function : void nrf24l01_enable_ack_payload(void)
+* Brief    : Enable ACK payload.
+* Input    : None.
+* Output   : None.
+* Return   : None.
+*******************************************************************************/
+void nrf24l01_enable_ack_payload(void)
+{
+  uint8_t value;
+
+  value = 0x02;
+  // Enable EN_ACK_PAY bit
+  nrf24l01_set_data_regs(NRF24L01_REG_FEATURE, ~value, value);
+}
+
+/******************************************************************************
+* Function : uint8_t nrf24l01_read_fifo_status(void)
+* Brief    : Read FIFO status.
+* Input    : None.
+* Output   : None.
+* Return   : None.
+*******************************************************************************/
+uint8_t nrf24l01_read_fifo_status(void)
+{
+  uint8_t value;
+  nrf24l01_read_regs(NRF24L01_REG_FIFO_STATUS, &value, 1);
+  return value;
+}
+
+/******************************************************************************
+* Function : void nrf24l01_clear_all_flags(void)
+* Brief    : Clear all status flag of NRF24L01.
+* Input    : None.
+* Output   : None.
+* Return   : None.
+*******************************************************************************/
+void nrf24l01_clear_all_flags(void)
+{
+  uint8_t value;
+  nrf24l01_read_regs(NRF24L01_REG_STATUS, &value, sizeof(value));
+  value &= ~(0x70);
+  value |= 0x70;
+  // Clear all interrupt flag
+  nrf24l01_write_regs(NRF24L01_REG_STATUS, &value, sizeof(value));
+}
+
+/******************************************************************************
+* Function : nrf24l01_write_back_ack_payload
+* Brief    : Write back payload as ACK.
+* Input    : None.
+* Output   : None.
+* Return   : None.
+*******************************************************************************/
+void nrf24l01_write_back_ack_payload(rx_data_pipe_t pipe, uint8_t* pdata, uint8_t len)
+{
+  uint8_t write_cmd;
+  uint8_t tx_buff[128 + 1]; // Add 1 byte for write command
+
+  // Consider to edit this line based on the datasheet
+  write_cmd = NRF24L01_CMD_W_ACK_PAYLOAD | pipe;
+  tx_buff[0] = write_cmd;
+  // TODO: Firstly need to check the data length
+  // to void encountered buffer overflow
+  memcpy(&tx_buff[1], pdata, len);
+	
+  NRF24L01_SPI_CS_LOW();
+  HAL_SPI_Transmit(&nrf24l01_spi, tx_buff, len + 1, NRF24L01_SPI_TIMEOUT);
+  NRF24L01_SPI_CS_HIGH();
+}
+
+/******************************************************************************
+* Function : void nrf24l01_print_all_configurations(void)
+* Brief    : Print all configured parameters.
+* Input    : None.
+* Output   : None.
+* Return   : None.
+*******************************************************************************/
+void nrf24l01_print_all_configurations(void)
+{
+  uint8_t read_value[NRF24L01_ADDR_WIDTH];
+
+  nrf24l01_read_regs(NRF24L01_REG_STATUS, read_value, 1);
+  PRINT_INFO_LOG("\r\nNRF24L01_REG_STATUS-0x%x: 0x%x\r\n", NRF24L01_REG_STATUS, read_value[0]);
+  // Print address of Reading Pipe
+  nrf24l01_read_regs(NRF24L01_REG_RX_ADDR_P1, read_value, 5);
+  PRINT_INFO_LOG("Reading Pipe Address-0x%x: 0x%x:0x%x:0x%x\r\n", NRF24L01_REG_RX_ADDR_P1, 
+                  read_value[0], read_value[1], read_value[2]);
+
+  // Print address of Writing Pipt
+  nrf24l01_read_regs(NRF24L01_REG_RX_ADDR_P0, read_value, 5);
+  PRINT_INFO_LOG("Writing Pipe RX Address-0x%x: 0x%x:0x%x:0x%x\r\n", NRF24L01_REG_RX_ADDR_P0, 
+                  read_value[0], read_value[1], read_value[2]);
+  nrf24l01_read_regs(NRF24L01_REG_TX_ADDR, read_value, 5);
+  PRINT_INFO_LOG("Writing Pipe TX Address-0x%x: 0x%x:0x%x:0x%x\r\n", NRF24L01_REG_TX_ADDR, 
+                  read_value[0], read_value[1], read_value[2]);
+  
+  // Print status of NRF24L01_REG_CONFIG register
+  nrf24l01_read_regs(NRF24L01_REG_CONFIG, read_value, 1);
+  PRINT_INFO_LOG("NRF24L01_REG_CONFIG-0x%x: 0x%x\r\n", NRF24L01_REG_CONFIG, read_value[0]);
+
+  // Print status of NRF24L01_REG_EN_AA register
+  nrf24l01_read_regs(NRF24L01_REG_EN_AA, read_value, 1);
+  PRINT_INFO_LOG("NRF24L01_REG_EN_AA-0x%x: 0x%x\r\n", NRF24L01_REG_EN_AA, read_value[0]);
+
+  // Print Rx payload of Data Pipe 0
+  nrf24l01_read_regs(NRF24L01_REG_RX_PW_P0, read_value, 1);
+  PRINT_INFO_LOG("NRF24L01_REG_RX_PW_P0-0x%x: 0x%x\r\n", NRF24L01_REG_RX_PW_P0, read_value[0]);
+
+  // Print Rx payload of Data Pipe 1
+  nrf24l01_read_regs(NRF24L01_REG_RX_PW_P1, read_value, 1);
+  PRINT_INFO_LOG("NRF24L01_REG_RX_PW_P1-0x%x: 0x%x\r\n", NRF24L01_REG_RX_PW_P1, read_value[0]);
+
+  // Print status of EN_AA register
+  nrf24l01_read_regs(NRF24L01_REG_EN_AA, read_value, 1);
+  PRINT_INFO_LOG("NRF24L01_REG_EN_AA-0x%x: 0x%x\r\n", NRF24L01_REG_EN_AA, read_value[0]);
+
+  // Print status of NRF24L01_REG_SETUP_AW register
+  nrf24l01_read_regs(NRF24L01_REG_SETUP_AW, read_value, 1);
+  PRINT_INFO_LOG("NRF24L01_REG_SETUP_AW-0x%x: 0x%x\r\n", NRF24L01_REG_SETUP_AW, read_value[0]);
+
+  // Print status of EN_RXADDR register
+  nrf24l01_read_regs(NRF24L01_REG_EN_RXADDR, read_value, 1);
+  PRINT_INFO_LOG("NRF24L01_REG_EN_RXADDR-0x%x: 0x%x\r\n", NRF24L01_REG_EN_RXADDR, read_value[0]);
+
+  // Print status of NRF24L01_REG_RF_CH register
+  nrf24l01_read_regs(NRF24L01_REG_RF_CH, read_value, 1);
+  PRINT_INFO_LOG("NRF24L01_REG_RF_CH-0x%x: 0x%x\r\n", NRF24L01_REG_RF_CH, read_value[0]);
+
+  // Print status of NRF24L01_REG_RF_SETUP register
+  nrf24l01_read_regs(NRF24L01_REG_RF_SETUP, read_value, 1);
+  PRINT_INFO_LOG("NRF24L01_REG_RF_SETUP-0x%x: 0x%x\r\n", NRF24L01_REG_RF_SETUP, read_value[0]);
+
+  // Print status of NRF24L01_REG_DYNPD register
+  nrf24l01_read_regs(NRF24L01_REG_DYNPD, read_value, 1);
+  PRINT_INFO_LOG("NRF24L01_REG_DYNPD-0x%x: 0x%x\r\n", NRF24L01_REG_DYNPD, read_value[0]);
+
+  // Print status of NRF24L01_REG_FEATURE register
+  nrf24l01_read_regs(NRF24L01_REG_FEATURE, read_value, 1);
+  PRINT_INFO_LOG("NRF24L01_REG_FEATURE-0x%x: 0x%x\r\n", NRF24L01_REG_FEATURE, read_value[0]);
+
+  // Print status of NRF24L01_REG_FIFO_STATUS register
+  nrf24l01_read_regs(NRF24L01_REG_FIFO_STATUS, read_value, 1);
+  PRINT_INFO_LOG("NRF24L01_REG_FIFO_STATUS-0x%x: 0x%x\r\n", NRF24L01_REG_FIFO_STATUS, read_value[0]);
 }
 
 /******************************************************************************
@@ -548,7 +776,7 @@ static void nrf24l01_gpio_init(void)
     HAL_GPIO_Init(NRF24L01_CE_GPIO_Port, &GPIO_InitStruct);
 
     GPIO_InitStruct.Pin = NRF24L01_IRQ_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(NRF24L01_IRQ_GPIO_Port, &GPIO_InitStruct);
 

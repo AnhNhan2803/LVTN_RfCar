@@ -19,6 +19,7 @@
 #include "cmsis_os2.h"
 #include "nrf24l01_app.h"
 #include "car_control.h"
+#include "log_debug.h"
 
 /******************************************************************************
 * CONFIGURATION CONSTANTS

@@ -20,6 +20,7 @@
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "nrf24l01.h"
+#include "log_debug.h"
 
 /******************************************************************************
 * CONFIGURATION CONSTANTS

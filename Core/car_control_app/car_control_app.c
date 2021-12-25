@@ -59,6 +59,10 @@ void car_control_thread_app_init(void)
 {
   // Creating car control app thread
   car_control_thread_handle = osThreadNew(car_control_thread_entry, NULL, &car_control_thread_attr);
+  if(car_control_thread_handle != NULL)
+  {
+    PRINT_INFO_LOG("Successfully create the Car control thread!\r\n");
+  }
 }
 
 /******************************************************************************
@@ -83,6 +87,7 @@ static void car_control_thread_entry (void *argument)
   while(1)
   {
     status = nrf24l01_get_chunk_data((nrf24l01_data_t *) data);
+		PRINT_INFO_LOG("Get chunk data from NRF24L01"); 
 
     if(status == osOK)
     {
