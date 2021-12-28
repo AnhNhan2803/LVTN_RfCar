@@ -158,7 +158,7 @@ void nrf24l01_init(void)
   // Open Reading pipe on Data pipe 1
   nrf24l01_set_rx_address(NRF24L01_DATA_PIPE_1, nrf24l01_rx_adrr, sizeof(nrf24l01_rx_adrr));
   // Set payload size for Reading pipe
-  nrf24l01_set_payload_size(NRF24L01_DATA_PIPE_1, 32);
+  nrf24l01_set_payload_size(NRF24L01_DATA_PIPE_1, NRF24L01_MAX_NUM_PACKET);
   nrf24l01_clear_all_flags();
   // Enable interrupt for RX data ready
   nrf24l01_enable_interrupt(NRF24L01_INT_RX_DR_ENABLE);
@@ -675,15 +675,15 @@ void nrf24l01_print_all_configurations(void)
   nrf24l01_read_regs(NRF24L01_REG_STATUS, read_value, 1);
   PRINT_INFO_LOG("\r\nNRF24L01_REG_STATUS-0x%x: 0x%x\r\n", NRF24L01_REG_STATUS, read_value[0]);
   // Print address of Reading Pipe
-  nrf24l01_read_regs(NRF24L01_REG_RX_ADDR_P1, read_value, 5);
+  nrf24l01_read_regs(NRF24L01_REG_RX_ADDR_P1, read_value, 3);
   PRINT_INFO_LOG("Reading Pipe Address-0x%x: 0x%x:0x%x:0x%x\r\n", NRF24L01_REG_RX_ADDR_P1, 
                   read_value[0], read_value[1], read_value[2]);
 
   // Print address of Writing Pipt
-  nrf24l01_read_regs(NRF24L01_REG_RX_ADDR_P0, read_value, 5);
+  nrf24l01_read_regs(NRF24L01_REG_RX_ADDR_P0, read_value, 3);
   PRINT_INFO_LOG("Writing Pipe RX Address-0x%x: 0x%x:0x%x:0x%x\r\n", NRF24L01_REG_RX_ADDR_P0, 
                   read_value[0], read_value[1], read_value[2]);
-  nrf24l01_read_regs(NRF24L01_REG_TX_ADDR, read_value, 5);
+  nrf24l01_read_regs(NRF24L01_REG_TX_ADDR, read_value, 3);
   PRINT_INFO_LOG("Writing Pipe TX Address-0x%x: 0x%x:0x%x:0x%x\r\n", NRF24L01_REG_TX_ADDR, 
                   read_value[0], read_value[1], read_value[2]);
   

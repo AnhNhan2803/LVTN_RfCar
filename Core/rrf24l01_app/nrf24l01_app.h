@@ -25,7 +25,7 @@
 /******************************************************************************
 * CONFIGURATION CONSTANTS
 *******************************************************************************/
-#define NRF24L01_MSG_SIZE            (NRF24L01_STATIC_PAYLOAD_LEN)
+#define NRF24L01_MSG_SIZE            (NRF24L01_PACKET_MAX_SIZE)
 #define NRF24L01_MAX_NUM_MSG         (20)
 #define NRF24L01_QUEUE_MSG_SIZE      (NRF24L01_MSG_SIZE * NRF24L01_MAX_NUM_MSG)
 
@@ -43,7 +43,7 @@
 * TYPEDEFS
 *******************************************************************************/
 typedef struct {
-    uint8_t data[NRF24L01_STATIC_PAYLOAD_LEN];
+    uint8_t data[NRF24L01_MAX_NUM_PACKET];
 } nrf24l01_data_t;
 
 /******************************************************************************

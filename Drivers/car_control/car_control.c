@@ -69,6 +69,7 @@ void car_control_init(void)
 {
   car_control_gpio_init();
   car_control_tim_init();
+  car_control_exec_cmd(CAR_CTRL_STOP);
 }
 
 /******************************************************************************
@@ -100,6 +101,7 @@ void car_control_exec_cmd(car_ctrl_t cmd)
   switch(cmd)
   {
     case CAR_CTRL_MOVE_FORWARD:
+      PRINT_INFO_LOG("Move forward!\r\n");
       MOTOR_LEFT1_CONTROL(100);
       MOTOR_LEFT2_CONTROL(0);
       MOTOR_RIGHT1_CONTROL(100);
@@ -107,6 +109,7 @@ void car_control_exec_cmd(car_ctrl_t cmd)
       break;
 
     case CAR_CTRL_MOVE_BACKWARD:
+      PRINT_INFO_LOG("Move backward!\r\n");
       MOTOR_LEFT1_CONTROL(0);
       MOTOR_LEFT2_CONTROL(100);
       MOTOR_RIGHT1_CONTROL(0);
@@ -114,6 +117,7 @@ void car_control_exec_cmd(car_ctrl_t cmd)
       break;
 
     case CAR_CTRL_TURN_LEFT:
+      PRINT_INFO_LOG("Turn left!\r\n");
       MOTOR_LEFT1_CONTROL(100);
       MOTOR_LEFT2_CONTROL(0);
       // TODO: Need to adjust the duty cycle of MOTOR_RIGHT_1 for
@@ -123,6 +127,7 @@ void car_control_exec_cmd(car_ctrl_t cmd)
       break;
 
     case CAR_CTRL_TURN_RIGHT:
+      PRINT_INFO_LOG("Turn right!\r\n");
       // TODO: Need to adjust the duty cycle of MOTOR_LEFT_1 for
       // best performance
       MOTOR_LEFT1_CONTROL(50);
@@ -132,6 +137,7 @@ void car_control_exec_cmd(car_ctrl_t cmd)
       break;
 
     case CAR_CTRL_BACK_LEFT:
+      PRINT_INFO_LOG("Turn back left!\r\n");
       MOTOR_LEFT1_CONTROL(0);
       MOTOR_LEFT2_CONTROL(100);
       MOTOR_RIGHT1_CONTROL(0);
@@ -141,6 +147,7 @@ void car_control_exec_cmd(car_ctrl_t cmd)
       break;
 
     case CAR_CTRL_BACK_RIGHT:
+      PRINT_INFO_LOG("Turn back right!\r\n");
       MOTOR_LEFT1_CONTROL(0);
       // TODO: Need to adjust the duty cycle of MOTOR_LEFT_2 for
       // best performance
@@ -150,6 +157,7 @@ void car_control_exec_cmd(car_ctrl_t cmd)
       break;
 
     case CAR_CTRL_ROTATE_LEFT:
+      PRINT_INFO_LOG("Rotate left!\r\n");
       MOTOR_LEFT1_CONTROL(100);
       MOTOR_LEFT2_CONTROL(0);
       MOTOR_RIGHT1_CONTROL(0);
@@ -157,6 +165,7 @@ void car_control_exec_cmd(car_ctrl_t cmd)
       break;
 
     case CAR_CTRL_ROTATE_RIGHT:
+      PRINT_INFO_LOG("Rotate right!\r\n");
       MOTOR_LEFT1_CONTROL(0);
       MOTOR_LEFT2_CONTROL(100);
       MOTOR_RIGHT1_CONTROL(100);
@@ -164,6 +173,7 @@ void car_control_exec_cmd(car_ctrl_t cmd)
       break;
 
     default:
+      PRINT_INFO_LOG("Stop the robot!\r\n");
       // Stop the car module
       MOTOR_LEFT1_CONTROL(0);
       MOTOR_LEFT2_CONTROL(0);

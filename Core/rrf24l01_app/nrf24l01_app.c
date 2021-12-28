@@ -15,7 +15,7 @@
 * PREPROCESSOR CONSTANTS
 *******************************************************************************/
 #define NRF24L01_THREAD_NAME             ("nrf24l01_thread")
-#define NRF24L01_THREAD_STACK_SIZE       (500) // Bytes
+#define NRF24L01_THREAD_STACK_SIZE       (1024) // Bytes
 #define NRF24L01_THREAD_PRIORITY         ((osPriority_t) osPriorityHigh1)
 #define NRF24L01_QUEUE_SUB_NAME          ("nrf24l01_queue")
 #define NEF24L01_QUEUE_TIMEOUT_MS        (1000)
@@ -99,8 +99,8 @@ static void nrf24l01_thread_entry (void *argument)
 {
   nrf24l01_data_t nrf24l01_data;
   osStatus_t status;
-  static uint8_t data[128];
   uint8_t data_len;
+  uint8_t nrf_status;
 
   // Init the Queue for storing all data
   // received from NRF24L01
@@ -110,60 +110,48 @@ static void nrf24l01_thread_entry (void *argument)
   nrf24l01_msg_queue_attr.mq_mem    = nrf24l01_msg_data;
   nrf24l01_msg_queue_attr.mq_size   = NRF24L01_QUEUE_MSG_SIZE;
   nrf24l01_msg_queue_id = osMessageQueueNew(NRF24L01_MAX_NUM_MSG, 
-                                      NRF24L01_MSG_SIZE, &nrf24l01_msg_queue_attr);    
-  uint8_t value = 0x00;
-  uint8_t test_value = 0x00;
+                                      NRF24L01_PACKET_MAX_SIZE, &nrf24l01_msg_queue_attr);    
+
   // Init the NRF24L01 driver as Receiver role   
   nrf24l01_init();
   // Temporaily define the NRF24L01 data frame as below
-  //|-- Header 1 --|-- Header 2 --|-- NRF24L01Command --|
-  //|--- 1 byte ---|--- 1 byte ---|------ 1 byte -------|
+  //|-- Header 1 --|-- Header 2 --|-- payload length --|-- NRF24L01Command --|---- data ----|
+  //|--- 1 byte ---|--- 1 byte ---|------ 1 byte ------|------ 1 byte -------|-- n bytes ---|
   uint16_t idx = 0;
   while(1)
   {
     nrf24l01_data_wait_new_data();
-
-    value = nrf24l01_read_fifo_status();
-    if (value != 0x01)
-    {
-      if(nrf24l01_read_data_fifo(data, &data_len))
-      {
-        PRINT_INFO_LOG("Data length: %d\r\n", data_len);
-        for(uint8_t i=0; i<data_len; i++)
-        {
-          PRINT_INFO_LOG("Data: %d\r\n", data[i]);
-        }
-        // Send ACK payload back to the transmitter 
-        nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, NRF24L01_RX_ACK_PAYLOAD, 10);
-      }
-      nrf24l01_clear_all_flags();
-      memset(data, 0, sizeof(data));
-    }
-
-    // nrf24l01_test_read_register(0x07, &value, 1);
-    // if(value != 0x0e)
-    // {
-    //   PRINT_INFO_LOG("Status register value: %d\r\n", value);
-    //   value = 0x40;
-    //   nrf24l01_test_write_register(0x07, &value, 1);
-    // }
-
 		PRINT_INFO_LOG("Receive message from Tx device: %d\r\n", idx++); 
-    
+
     // Read data from RX FIFO, need to read the number of available
     // data in RX FIFO firstly if using Dynamic payload length
-    // For Static payload length, just read the data without checking
-    // the amount of data since it's already known
-    // nrf24l01_read_data_fifo((uint8_t *)&nrf24l01_data, sizeof(nrf24l01_data));
+    nrf_status = nrf24l01_read_fifo_status();
+    if (nrf_status != 0x01)
+    {
+      if(nrf24l01_read_data_fifo((uint8_t *)&nrf24l01_data, &data_len))
+      {
+        PRINT_INFO_LOG("Data length: %d\r\nData", data_len);
+        for(uint8_t i=0; i<data_len; i++)
+        {
+          PRINT_INFO_LOG(":0x%x", nrf24l01_data.data[i]);
+        }
+        PRINT_INFO_LOG("\r\n");
 
-    // // Put the data received from NRF24L01 into Queue
-    // status = osMessageQueuePut(nrf24l01_msg_queue_id, &nrf24l01_data, 0xff, 0);
-    // if(osOK != status)
-    // {
-    //   // Reset the Queue in case encountered FULL FIFO scenario
-    //   osMessageQueueReset(nrf24l01_msg_queue_id);
-    //   PRINT_ERROR_LOG("Fail to put data into queue\r\n");
-    // }
+        // Send ACK payload back to the transmitter 
+        nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, (uint8_t *)NRF24L01_RX_ACK_PAYLOAD, 10);
+
+        // Put the data received from NRF24L01 into Queue
+        status = osMessageQueuePut(nrf24l01_msg_queue_id, &nrf24l01_data, 0xff, 0);
+        if(osOK != status)
+        {
+          // Reset the Queue in case encountered FULL FIFO scenario
+          osMessageQueueReset(nrf24l01_msg_queue_id);
+          PRINT_ERROR_LOG("Fail to put data into queue\r\n");
+        }
+      }
+      nrf24l01_clear_all_flags();
+      // memset(data, 0, sizeof(data));
+    }
   }
 }
 /*************** END OF FILES *************************************************/

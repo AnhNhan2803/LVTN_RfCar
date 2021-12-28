@@ -77,7 +77,7 @@ void car_control_thread_app_init(void)
 *******************************************************************************/
 static void car_control_thread_entry (void *argument)
 {
-  uint8_t data[NRF24L01_STATIC_PAYLOAD_LEN];
+  uint8_t data[NRF24L01_MAX_NUM_PACKET];
   osStatus_t status;   
 
   // Init the car control driver 
@@ -87,15 +87,19 @@ static void car_control_thread_entry (void *argument)
   while(1)
   {
     status = nrf24l01_get_chunk_data((nrf24l01_data_t *) data);
-		PRINT_INFO_LOG("Get chunk data from NRF24L01"); 
+		PRINT_INFO_LOG("Get chunk data from NRF24L01\r\n"); 
 
     if(status == osOK)
     {
         // Handle all operations of RF car here
-        if(data[0] == NRF24L01_PAYLOAD_HEADER_1 
-          && data[1] == NRF24L01_PAYLOAD_HEADER_2)
+        if(data[0] == NRF24L01_PAYLOAD_HEADER_1 &&
+           data[1] == NRF24L01_PAYLOAD_HEADER_2)
         {
-          car_control_exec_cmd((car_ctrl_t)data[2]);
+          // Parse the payload length
+          if (data[2] > 0)
+          {
+            car_control_exec_cmd((car_ctrl_t)data[3]);
+          }
         }
         
     }
