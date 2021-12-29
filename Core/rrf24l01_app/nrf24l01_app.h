@@ -22,6 +22,7 @@
 #include "nrf24l01.h"
 #include "log_debug.h"
 #include "esp_com.h"
+#include "esp_app.h"
 
 /******************************************************************************
 * CONFIGURATION CONSTANTS

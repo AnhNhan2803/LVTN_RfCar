@@ -97,6 +97,7 @@ osStatus_t nrf24l01_get_chunk_data(nrf24l01_data_t * pdata)
 *******************************************************************************/
 static void nrf24l01_thread_entry (void *argument)
 {
+	osStatus_t status;
   nrf24l01_data_t nrf24l01_data;
   uint8_t data_len;
   uint8_t nrf_status;

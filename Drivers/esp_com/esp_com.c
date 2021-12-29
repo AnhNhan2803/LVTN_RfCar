@@ -80,13 +80,13 @@ void esp_com_init(void)
 }
 
 /******************************************************************************
-* Function : void log_debug_deinit(void)
+* Function : void esp_com_deinit(void)
 * Brief    : DeInitialize print log debug over uart
 * Input    : None.
 * Output   : None.
 * Return   : None.
 *******************************************************************************/
-void log_debug_deinit(void)
+void esp_com_deinit(void)
 {
     esp_gpio_deinit();
     esp_uart_deinit();

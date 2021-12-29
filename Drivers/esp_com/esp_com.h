@@ -18,6 +18,7 @@
 #include <string.h>
 #include "main.h"
 #include "cmsis_os2.h"
+#include "log_debug.h"
 
 /******************************************************************************
 * CONFIGURATION CONSTANTS
