@@ -82,7 +82,7 @@ static void esp_com_tx_thread_entry (void *argument);
 * Output   : None.
 * Return   : None.
 *******************************************************************************/
-uint8_t esp_com_get_rx_data(uint8_t * data, uint8_t * len)
+uint8_t esp_com_get_rx_data(uint8_t * pdata, uint8_t * len)
 {
     uint8_t ret = 0;
     uint8_t data[ESP_COM_RX_MAX_PACKET_SIZE];
@@ -99,7 +99,7 @@ uint8_t esp_com_get_rx_data(uint8_t * data, uint8_t * len)
         {
             // Assign data length to payload length
             *len = data[2] - 1;
-            memcpy(data, &data[4], *len);
+            memcpy(pdata, &data[4], *len);
         }
         else
         {

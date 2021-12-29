@@ -55,7 +55,7 @@
 * FUNCTION PROTOTYPES
 *******************************************************************************/
 void esp_com_thread_app_init(void);
-uint8_t esp_com_get_rx_data(uint8_t * data, uint8_t * len);
+uint8_t esp_com_get_rx_data(uint8_t * pdata, uint8_t * len);
 // bool esp_com_get_rx_data_status(void);
 void esp_com_put_data_tx_to_queue(uint8_t * data);
 

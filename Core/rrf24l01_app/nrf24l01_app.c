@@ -154,18 +154,16 @@ static void nrf24l01_thread_entry (void *argument)
             memset(uart_tx_data, 0, sizeof(uart_tx_data));
             // Connect to the SSID+PASSWORD received from raspberry
             memcpy(uart_tx_data, nrf24l01_data.data, ESP_COM_HEADER_SIZE + ESP_COM_PAYLOAD_LEN_SIZE + nrf24l01_data.data[2]);
-            // Delay to ensure that the wifi connection is established
-            // osDelay(1000);
+            esp_com_put_data_tx_to_queue(uart_tx_data);
             nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, (uint8_t *)NRF24L01_RX_ACK_PAYLOAD, 10);
             break;
 
 
           case ESP_CMD_DISCONNECT:
             memset(uart_tx_data, 0, sizeof(uart_tx_data));
-            // Connect to the SSID+PASSWORD received from raspberry
+            // disconnect from the current wifi
             memcpy(uart_tx_data, nrf24l01_data.data, ESP_COM_HEADER_SIZE + ESP_COM_PAYLOAD_LEN_SIZE + nrf24l01_data.data[2]);
-            // Delay to ensure that the wifi connection is established
-            // osDelay(1000);
+            esp_com_put_data_tx_to_queue(uart_tx_data);
             nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, (uint8_t *)NRF24L01_RX_ACK_PAYLOAD, 10);
             break;
 
@@ -217,6 +215,8 @@ static void nrf24l01_thread_entry (void *argument)
             memset(uart_tx_data, 0, sizeof(uart_tx_data));
             // Connect to the SSID+PASSWORD received from raspberry
             memcpy(uart_tx_data, nrf24l01_data.data, ESP_COM_HEADER_SIZE + ESP_COM_PAYLOAD_LEN_SIZE + nrf24l01_data.data[2]);
+            esp_com_put_data_tx_to_queue(uart_tx_data);
+
             // Delay to ensure that the wifi connection is established
             // osDelay(1000);
             nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, (uint8_t *)NRF24L01_RX_ACK_PAYLOAD, 10);
@@ -227,6 +227,7 @@ static void nrf24l01_thread_entry (void *argument)
             memset(uart_tx_data, 0, sizeof(uart_tx_data));
             // Get local IP of the connected network
             memcpy(uart_tx_data, nrf24l01_data.data, ESP_COM_HEADER_SIZE + ESP_COM_PAYLOAD_LEN_SIZE + nrf24l01_data.data[2]);
+            esp_com_put_data_tx_to_queue(uart_tx_data);
             while(!is_received_ssid_ip)
             {
               osDelay(10);
