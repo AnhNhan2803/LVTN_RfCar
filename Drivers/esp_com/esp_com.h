@@ -26,9 +26,22 @@
 #define ESP_COM_HEADER1        (0xAB)
 #define ESP_COM_HEADER2        (0xBA)
 #define ESP_COM_HEADER_SIZE    (2)
+#define ESP_COM_CMD_SIZE                (1)
+#define ESP_COM_PAYLOAD_LEN_SIZE        (1)
+
 #define ESP_COM_RX_MAX_PACKET_SIZE (30)
 #define ESP_COM_RX_MAX_NUM_SSID (30)
 #define ESP_COM_TRANSFER_TIMEOUT (500)
+
+
+#define ESP_CMD_CONNECT                 (0xA0)
+#define ESP_CMD_DISCONNECT              (0xA1)
+#define ESP_CMD_GET_AVAILABLE_SSID      (0xA2)
+#define ESP_CMD_SET_SSID                (0xA3)
+#define ESP_CMD_GET_IP                  (0xA4)
+#define ESP_CMD_GET_RSSI                (0xA5)
+
+#define ESP_CMD_RESPONSE_ACK            (0xB0)
 
 #define FIFO_BUF_DEF(pbuff ,size , element)  \
     uint8_t pbuff##data[size * element];     \
@@ -54,11 +67,11 @@ typedef struct {
 } esp_com_rx_params_t;
 
 typedef struct {
-    uint8_t ssid_len;
+    uint8_t len;
     // Plus one byte of true/false to indicate that
     // there are available ssid need to transmit
-    uint8_t ssid[ESP_COM_RX_MAX_PACKET_SIZE];
-} esp_com_ssid_t;
+    uint8_t data[ESP_COM_RX_MAX_PACKET_SIZE];
+} rx_data_t;
 
 typedef struct {
     uint8_t * const buffer;

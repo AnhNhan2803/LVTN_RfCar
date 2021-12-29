@@ -47,6 +47,8 @@ static uint8_t nrf24l01_msg_data[NRF24L01_QUEUE_MSG_SIZE] = {0};
 static osMessageQueueAttr_t nrf24l01_msg_queue_attr;
 static StaticQueue_t        xQueueBuffer; // xQueueBuffer will hold the queue structure.
 static nrf24l01_queue_id_t  nrf24l01_msg_queue_id;
+extern bool is_no_available_ssid;
+extern bool is_received_ssid_ip;
 
 /******************************************************************************
 * FUNCTION PROTOTYPES
@@ -101,11 +103,13 @@ static void nrf24l01_thread_entry (void *argument)
   nrf24l01_data_t nrf24l01_data;
   uint8_t data_len;
   uint8_t nrf_status;
-  esp_com_ssid_t ssid_obj;
+  rx_data_t rx_data;
+  uint8_t esp_status;
+  bool is_start_get_available_ssid = false;
+  uint8_t uart_tx_data[ESP_COM_RX_MAX_PACKET_SIZE];
   uint8_t tx_packet[ESP_COM_RX_MAX_PACKET_SIZE + 1];
   tx_packet[0] = NRF24L01_PAYLOAD_HEADER_1; 
   tx_packet[1] = NRF24L01_PAYLOAD_HEADER_2; 
-  uint8_t esp_status;
 
   // Init the Queue for storing all data
   // received from NRF24L01
@@ -146,31 +150,118 @@ static void nrf24l01_thread_entry (void *argument)
         // Put the data received from NRF24L01 into Queue
         switch(nrf24l01_data.data[3])
         {
-          case RF_CMD_GET_WIFI_APS:
+          case ESP_CMD_CONNECT:
+            memset(uart_tx_data, 0, sizeof(uart_tx_data));
+            // Connect to the SSID+PASSWORD received from raspberry
+            memcpy(uart_tx_data, nrf24l01_data.data, ESP_COM_HEADER_SIZE + ESP_COM_PAYLOAD_LEN_SIZE + nrf24l01_data.data[2]);
+            // Delay to ensure that the wifi connection is established
+            // osDelay(1000);
+            nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, (uint8_t *)NRF24L01_RX_ACK_PAYLOAD, 10);
+            break;
+
+
+          case ESP_CMD_DISCONNECT:
+            memset(uart_tx_data, 0, sizeof(uart_tx_data));
+            // Connect to the SSID+PASSWORD received from raspberry
+            memcpy(uart_tx_data, nrf24l01_data.data, ESP_COM_HEADER_SIZE + ESP_COM_PAYLOAD_LEN_SIZE + nrf24l01_data.data[2]);
+            // Delay to ensure that the wifi connection is established
+            // osDelay(1000);
+            nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, (uint8_t *)NRF24L01_RX_ACK_PAYLOAD, 10);
+            break;
+
+
+          case ESP_CMD_GET_AVAILABLE_SSID:
+            // Need to send a start get available wifi
+            // for the first time
+            if(!is_start_get_available_ssid)
+            {
+              memset(uart_tx_data, 0, sizeof(uart_tx_data));
+              is_start_get_available_ssid = true;
+              memcpy(uart_tx_data, nrf24l01_data.data, ESP_COM_HEADER_SIZE + ESP_COM_PAYLOAD_LEN_SIZE + ESP_COM_CMD_SIZE);
+              esp_com_put_data_tx_to_queue(uart_tx_data);
+            }
+
+            // Wait for the scanning action
+            while(!is_no_available_ssid){
+              osDelay(10);
+            }
+
             // Detect get WIFI list then send back ACK payload as
             // a ssid each time transmit a packet to RF
-            esp_status = esp_com_get_ssid(ssid_obj.ssid, &ssid_obj.ssid_len);
+            esp_status = esp_com_get_rx_data(rx_data.data, &rx_data.len);
             if(esp_status == 0)
             {
               // Payload length = SSID length + command length + Is_available_ssid length
-              tx_packet[2] = ssid_obj.ssid_len + 1 + 1; 
-              tx_packet[3] = RF_CMD_GET_WIFI_APS;
-              memcpy(&tx_packet[4], ssid_obj.ssid, ssid_obj.ssid_len);
-              tx_packet[4 + ssid_obj.ssid_len] = 0x01;
-              nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, tx_packet, 5 + ssid_obj.ssid_len);
+              tx_packet[2] = rx_data.len + 1 + 1; 
+              tx_packet[3] = ESP_CMD_GET_AVAILABLE_SSID;
+              // A byte to notify that there is available ssid or not
+              tx_packet[4] = 0x01;
+              memcpy(&tx_packet[5], rx_data.data, rx_data.len);
+              nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, tx_packet, 5 + rx_data.len);
             }
             else
             {
+              // Re-enable these flags for the next check
+              is_no_available_ssid = false;
+              is_start_get_available_ssid = true;
               PRINT_INFO_LOG("Can not get data from SSID buffer: eer_code %d\r\n", esp_status);
               // Payload length = command length + Is_available_ssid length
               tx_packet[2] = 1 + 1; 
-              tx_packet[3] = RF_CMD_GET_WIFI_APS;
+              tx_packet[3] = ESP_CMD_GET_AVAILABLE_SSID;
               tx_packet[4] = 0x00;
               nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, tx_packet, 5);
             }
             break;
 
+          case ESP_CMD_SET_SSID:
+            memset(uart_tx_data, 0, sizeof(uart_tx_data));
+            // Connect to the SSID+PASSWORD received from raspberry
+            memcpy(uart_tx_data, nrf24l01_data.data, ESP_COM_HEADER_SIZE + ESP_COM_PAYLOAD_LEN_SIZE + nrf24l01_data.data[2]);
+            // Delay to ensure that the wifi connection is established
+            // osDelay(1000);
+            nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, (uint8_t *)NRF24L01_RX_ACK_PAYLOAD, 10);
+            break;
+
+
+          case ESP_CMD_GET_IP:
+            memset(uart_tx_data, 0, sizeof(uart_tx_data));
+            // Get local IP of the connected network
+            memcpy(uart_tx_data, nrf24l01_data.data, ESP_COM_HEADER_SIZE + ESP_COM_PAYLOAD_LEN_SIZE + nrf24l01_data.data[2]);
+            while(!is_received_ssid_ip)
+            {
+              osDelay(10);
+            }
+            is_received_ssid_ip = false;
+            esp_status = esp_com_get_rx_data(rx_data.data, &rx_data.len);
+
+            if(esp_status == 0)
+            {
+              // Payload length = SSID length + command length + Is_available_ssid length
+              tx_packet[2] = rx_data.len + 1 + 1; 
+              tx_packet[3] = ESP_CMD_GET_IP;
+              // A byte to notify that there is available ssid or not
+              tx_packet[4] = 0x01;
+              memcpy(&tx_packet[5], rx_data.data, rx_data.len);
+              nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, tx_packet, 5 + rx_data.len);
+            }
+            else
+            {
+              PRINT_INFO_LOG("Can not get Local IP: eer_code %d\r\n", esp_status);
+              // Payload length = command length + Is_available_ssid length
+              tx_packet[2] = 1 + 1; 
+              tx_packet[3] = ESP_CMD_GET_IP;
+              tx_packet[4] = 0x00;
+              nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, tx_packet, 5);
+            }
+            break;
+
+
+          case ESP_CMD_GET_RSSI:
+            break;
+
+
           default:
+            // Detect car control command
             status = osMessageQueuePut(nrf24l01_msg_queue_id, &nrf24l01_data, 0xff, 0);
             if(osOK != status)
             {

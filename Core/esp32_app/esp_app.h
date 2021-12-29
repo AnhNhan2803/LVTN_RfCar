@@ -17,6 +17,8 @@
 #include <stdlib.h>
 #include "main.h"
 #include "cmsis_os2.h"
+#include "FreeRTOS.h"
+#include "queue.h"
 #include "nrf24l01_app.h"
 #include "car_control.h"
 #include "esp_com.h"
@@ -25,7 +27,9 @@
 /******************************************************************************
 * CONFIGURATION CONSTANTS
 *******************************************************************************/
-
+#define ESP_COM_TX_MSG_SIZE            (30)
+#define ESP_COM_TX_MAX_NUM_MSG         (20)
+#define ESP_COM_TX_QUEUE_MSG_SIZE      (ESP_COM_TX_MSG_SIZE * ESP_COM_TX_MAX_NUM_MSG)
 
 /******************************************************************************
 * PREPROCESSOR CONSTANTS
@@ -51,7 +55,9 @@
 * FUNCTION PROTOTYPES
 *******************************************************************************/
 void esp_com_thread_app_init(void);
-uint8_t esp_com_get_ssid(uint8_t * ssid, uint8_t * len);
+uint8_t esp_com_get_rx_data(uint8_t * data, uint8_t * len);
+// bool esp_com_get_rx_data_status(void);
+void esp_com_put_data_tx_to_queue(uint8_t * data);
 
 #endif // CAR_CONTROL_ESP_APP_H_APP_H_
 /*** END OF FILE **************************************************************/

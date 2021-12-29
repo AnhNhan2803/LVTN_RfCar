@@ -50,7 +50,7 @@ esp_com_rx_params_t esp_com = {
 };
 static osSemaphoreId_t esp_data_sem;
 FIFO_BUF_DEF(esp_com_data, ESP_COM_RX_MAX_NUM_SSID, ESP_COM_RX_MAX_PACKET_SIZE);
-static osMutexId_t          esp_com_mutex = NULL;
+static osMutexId_t esp_com_mutex = NULL;
 
 /******************************************************************************
 * FUNCTION PROTOTYPES
@@ -162,6 +162,7 @@ bool esp_com_put_data_into_queue(uint8_t * pdata)
         esp_com_data.head = 0;
         esp_com_data.tail = 0;
         esp_com_data.cnt = 0;
+        ESP_COM_CS_EXIT();    
         return false;
     }
 
@@ -186,6 +187,7 @@ bool esp_com_get_data_from_queue(uint8_t * pdata)
     // if the head == tail, we don't have any data
     if (esp_com_data.head == esp_com_data.tail)  
     {
+        ESP_COM_CS_EXIT();    
         return false;
     }
 
