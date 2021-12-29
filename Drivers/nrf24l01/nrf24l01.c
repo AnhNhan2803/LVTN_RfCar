@@ -127,7 +127,7 @@ void nrf24l01_data_wait_new_data(void)
 *******************************************************************************/
 void nrf24l01_init(void)
 {
-  uint8_t value = 0;
+  // uint8_t value = 0;
   nrf24l01_gpio_init();
   nrf24l01_spi_init();
   osDelay(2);

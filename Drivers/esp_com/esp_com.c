@@ -217,7 +217,7 @@ uint8_t esp_com_get_current_data(uint8_t * pdata)
     uint8_t ret = 0;
     if (esp_com.rx_len > 0)
     {
-        memcpy(data, esp_com.rx_buff, esp_com.rx_len);
+        memcpy(pdata, esp_com.rx_buff, esp_com.rx_len);
         ret = esp_com.rx_len;
     }    
 

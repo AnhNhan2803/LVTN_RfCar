@@ -59,6 +59,15 @@ typedef struct {
     uint8_t ssid[ESP_COM_RX_MAX_PACKET_SIZE];
 } esp_com_ssid_t;
 
+typedef struct {
+    uint8_t * const buffer;
+    int head;
+    int tail;
+    const int maxlen;
+    int elem;
+    int cnt;
+} fifo_buf_t;
+
 /******************************************************************************
 * FUNCTION PROTOTYPES
 *******************************************************************************/

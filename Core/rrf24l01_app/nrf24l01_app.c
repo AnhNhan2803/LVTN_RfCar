@@ -98,14 +98,13 @@ osStatus_t nrf24l01_get_chunk_data(nrf24l01_data_t * pdata)
 static void nrf24l01_thread_entry (void *argument)
 {
   nrf24l01_data_t nrf24l01_data;
-  osStatus_t status;
   uint8_t data_len;
   uint8_t nrf_status;
   esp_com_ssid_t ssid_obj;
   uint8_t tx_packet[ESP_COM_RX_MAX_PACKET_SIZE + 1];
   tx_packet[0] = NRF24L01_PAYLOAD_HEADER_1; 
   tx_packet[1] = NRF24L01_PAYLOAD_HEADER_2; 
-  uint8_t status;
+  uint8_t esp_status;
 
   // Init the Queue for storing all data
   // received from NRF24L01
@@ -122,7 +121,6 @@ static void nrf24l01_thread_entry (void *argument)
   // Temporaily define the NRF24L01 data frame as below
   //|-- Header 1 --|-- Header 2 --|-- payload length --|-- NRF24L01Command --|---- data ----|
   //|--- 1 byte ---|--- 1 byte ---|------ 1 byte ------|------ 1 byte -------|-- n bytes ---|
-  uint16_t idx = 0;
 
   while(1)
   {
@@ -150,8 +148,8 @@ static void nrf24l01_thread_entry (void *argument)
           case RF_CMD_GET_WIFI_APS:
             // Detect get WIFI list then send back ACK payload as
             // a ssid each time transmit a packet to RF
-            status = esp_com_get_ssid(ssid_obj.ssid, &ssid_obj.ssid_len);
-            if(status == 0)
+            esp_status = esp_com_get_ssid(ssid_obj.ssid, &ssid_obj.ssid_len);
+            if(esp_status == 0)
             {
               // Payload length = SSID length + command length + Is_available_ssid length
               tx_packet[2] = ssid_obj.ssid_len + 1 + 1; 
@@ -162,7 +160,7 @@ static void nrf24l01_thread_entry (void *argument)
             }
             else
             {
-              PRINT_INFO_LOG("Can not get data from SSID buffer: eer_code %d\r\n", status);
+              PRINT_INFO_LOG("Can not get data from SSID buffer: eer_code %d\r\n", esp_status);
               // Payload length = command length + Is_available_ssid length
               tx_packet[2] = 1 + 1; 
               tx_packet[3] = RF_CMD_GET_WIFI_APS;

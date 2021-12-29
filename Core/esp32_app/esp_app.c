@@ -58,7 +58,7 @@ static void esp_com_thread_entry (void *argument);
 *******************************************************************************/
 uint8_t esp_com_get_ssid(uint8_t * ssid, uint8_t * len)
 {
-    bool ret = 0;
+    uint8_t ret = 0;
     uint8_t data[ESP_COM_RX_MAX_PACKET_SIZE];
     
     if(!esp_com_get_data_from_queue(data))
@@ -104,13 +104,13 @@ void esp_com_thread_app_init(void)
 * STATIC FUNCTIONS
 *******************************************************************************/
 /******************************************************************************
-* Function : static void esp_comthread_entry (void *argument)
+* Function : static void esp_com_thread_entry (void *argument)
 * Brief    : Thread entry handles all operations of esp communication module.
 * Input    : None.
 * Output   : None.
 * Return   : None.
 *******************************************************************************/
-static void esp_comthread_entry (void *argument)
+static void esp_com_thread_entry (void *argument)
 {
     uint8_t data[ESP_COM_RX_MAX_PACKET_SIZE];
     uint8_t data_len = 0;
