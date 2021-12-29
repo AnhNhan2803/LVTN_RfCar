@@ -53,6 +53,12 @@ extern "C" {
 #define UART_RX_Pin                             GPIO_PIN_10
 #define UART_RX_GPIO_Port                       GPIOA
 
+// Define GPIOs using for ESP32 communication
+#define ESP_UART_TX_Pin                             GPIO_PIN_10
+#define ESP_UART_TX_GPIO_Port                       GPIOB
+#define ESP_UART_RX_Pin                             GPIO_PIN_11
+#define ESP_UART_RX_GPIO_Port                       GPIOB
+
 // Define GPIOs using for NRF24L01 communication
 #define NRF24L01_SPI_SCK_Pin                    GPIO_PIN_5
 #define NRF24L01_SPI_SCK_GPIO_Port              GPIOA 

@@ -24,6 +24,7 @@
 #include "log_debug.h"
 #include "nrf24l01_app.h"
 #include "car_control_app.h"
+#include "esp_app.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -101,6 +102,8 @@ int main(void)
   /* USER CODE END 2 */
   nrf24l01_thread_app_init();
 	car_control_thread_app_init();
+  esp_com_thread_app_init();
+  
   /* Init scheduler */
   osKernelInitialize();
 

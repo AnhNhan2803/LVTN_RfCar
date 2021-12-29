@@ -101,6 +101,11 @@ static void nrf24l01_thread_entry (void *argument)
   osStatus_t status;
   uint8_t data_len;
   uint8_t nrf_status;
+  esp_com_ssid_t ssid_obj;
+  uint8_t tx_packet[ESP_COM_RX_MAX_PACKET_SIZE + 1];
+  tx_packet[0] = NRF24L01_PAYLOAD_HEADER_1; 
+  tx_packet[1] = NRF24L01_PAYLOAD_HEADER_2; 
+  uint8_t status;
 
   // Init the Queue for storing all data
   // received from NRF24L01
@@ -118,6 +123,7 @@ static void nrf24l01_thread_entry (void *argument)
   //|-- Header 1 --|-- Header 2 --|-- payload length --|-- NRF24L01Command --|---- data ----|
   //|--- 1 byte ---|--- 1 byte ---|------ 1 byte ------|------ 1 byte -------|-- n bytes ---|
   uint16_t idx = 0;
+
   while(1)
   {
     nrf24l01_data_wait_new_data();
@@ -125,6 +131,7 @@ static void nrf24l01_thread_entry (void *argument)
 
     // Read data from RX FIFO, need to read the number of available
     // data in RX FIFO firstly if using Dynamic payload length
+    // ESP_COM_CS_ENTER();
     nrf_status = nrf24l01_read_fifo_status();
     if (nrf_status != 0x01)
     {
@@ -137,21 +144,49 @@ static void nrf24l01_thread_entry (void *argument)
         }
         PRINT_INFO_LOG("\r\n");
 
-        // Send ACK payload back to the transmitter 
-        nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, (uint8_t *)NRF24L01_RX_ACK_PAYLOAD, 10);
-
         // Put the data received from NRF24L01 into Queue
-        status = osMessageQueuePut(nrf24l01_msg_queue_id, &nrf24l01_data, 0xff, 0);
-        if(osOK != status)
+        switch(nrf24l01_data.data[3])
         {
-          // Reset the Queue in case encountered FULL FIFO scenario
-          osMessageQueueReset(nrf24l01_msg_queue_id);
-          PRINT_ERROR_LOG("Fail to put data into queue\r\n");
+          case RF_CMD_GET_WIFI_APS:
+            // Detect get WIFI list then send back ACK payload as
+            // a ssid each time transmit a packet to RF
+            status = esp_com_get_ssid(ssid_obj.ssid, &ssid_obj.ssid_len);
+            if(status == 0)
+            {
+              // Payload length = SSID length + command length + Is_available_ssid length
+              tx_packet[2] = ssid_obj.ssid_len + 1 + 1; 
+              tx_packet[3] = RF_CMD_GET_WIFI_APS;
+              memcpy(&tx_packet[4], ssid_obj.ssid, ssid_obj.ssid_len);
+              tx_packet[4 + ssid_obj.ssid_len] = 0x01;
+              nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, tx_packet, 5 + ssid_obj.ssid_len);
+            }
+            else
+            {
+              PRINT_INFO_LOG("Can not get data from SSID buffer: eer_code %d\r\n", status);
+              // Payload length = command length + Is_available_ssid length
+              tx_packet[2] = 1 + 1; 
+              tx_packet[3] = RF_CMD_GET_WIFI_APS;
+              tx_packet[4] = 0x00;
+              nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, tx_packet, 5);
+            }
+            break;
+
+          default:
+            status = osMessageQueuePut(nrf24l01_msg_queue_id, &nrf24l01_data, 0xff, 0);
+            if(osOK != status)
+            {
+              // Reset the Queue in case encountered FULL FIFO scenario
+              osMessageQueueReset(nrf24l01_msg_queue_id);
+              PRINT_ERROR_LOG("Fail to put data into queue\r\n");
+            }
+            // Send ACK payload back to the transmitter 
+            nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, (uint8_t *)NRF24L01_RX_ACK_PAYLOAD, 10);
         }
       }
       nrf24l01_clear_all_flags();
       // memset(data, 0, sizeof(data));
     }
+    // ESP_COM_CS_EXIT();
   }
 }
 /*************** END OF FILES *************************************************/

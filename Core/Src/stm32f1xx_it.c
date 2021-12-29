@@ -30,6 +30,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN TD */
+extern UART_HandleTypeDef huart3;
 
 /* USER CODE END TD */
 
@@ -192,9 +193,13 @@ void EXTI1_IRQHandler(void)
     // data from nrf24l01
     nrf24l01_data_ready_callback();
   }
-
-  // HAL_GPIO_EXTI_IRQHandler(NRF24L01_IRQ_Pin);
 }
+
+void USART3_IRQHandler(void)
+{
+  HAL_UART_IRQHandler(&huart3);
+}
+
 /* USER CODE BEGIN 1 */
 
 /* USER CODE END 1 */
