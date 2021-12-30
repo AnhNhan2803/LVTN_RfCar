@@ -95,7 +95,7 @@ uint8_t esp_com_get_rx_data(uint8_t * pdata, uint8_t * len)
     else
     {
         // Check 2 headers and a byte of payload length
-        if((data[0] == ESP_COM_HEADER1) && (data[0] == ESP_COM_HEADER2) && (data[2] > 0))
+        if((data[0] == ESP_COM_HEADER1) && (data[1] == ESP_COM_HEADER2) && (data[2] > 0))
         {
             // Assign data length to payload length
             *len = data[2] - 1;
@@ -145,6 +145,7 @@ void esp_com_thread_app_init(void)
     esp_com_thread_handle = osThreadNew(esp_com_thread_entry, NULL, &esp_com_thread_attr);
     esp_com_tx_thread_handle = osThreadNew(esp_com_tx_thread_entry, NULL, &esp_com_tx_thread_attr);
     ESP_APP_CS_INIT();
+		esp_com_init();
     if(esp_com_thread_handle != NULL)
     {
         PRINT_INFO_LOG("Successfully create the ESP communication thread!\r\n");
@@ -170,7 +171,6 @@ static void esp_com_thread_entry (void *argument)
     tx_packet[1] = ESP_COM_HEADER2;
     //|-- Header 1 --|-- Header 2 --|-- payload length --|--- CMD ---|---- data ----|
     //|--- 1 byte ---|--- 1 byte ---|------ 1 byte ------|-- 1 byte--|-- n bytes ---|
-    esp_com_init();
 
     while(1)
     {
@@ -191,7 +191,7 @@ static void esp_com_thread_entry (void *argument)
 
                 case ESP_CMD_GET_AVAILABLE_SSID:
                     // There is no available SSID
-                    if((data[2] == 0x05) && (data[4] == 0x00))
+                    if((data[2] == 0x02) && (data[4] == 0x00))
                     {
                         is_no_available_ssid = true;
                     }

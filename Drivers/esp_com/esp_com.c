@@ -221,6 +221,7 @@ uint8_t esp_com_get_current_data(uint8_t * pdata)
     {
         memcpy(pdata, esp_com.rx_buff, esp_com.rx_len);
         ret = esp_com.rx_len;
+        esp_com.rx_len = 0;
     }    
 
     return ret;
@@ -274,7 +275,7 @@ void esp_uart_init(void)
     huart3.Init.Mode = UART_MODE_TX_RX;
     huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
     huart3.Init.OverSampling = UART_OVERSAMPLING_16;
-    huart3.RxCpltCallback = esp_rx_transfer_cplt;
+    // huart3.RxCpltCallback = esp_rx_transfer_cplt;
 
     if (HAL_UART_Init(&huart3) != HAL_OK)
     {
@@ -324,12 +325,12 @@ void esp_uart_deinit(void)
 * Output   : None.
 * Return   : None.
 *******************************************************************************/
-static void esp_rx_transfer_cplt(UART_HandleTypeDef *UartHandle)
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
     //|-- Header 1 --|-- Header 2 --|-- payload length --|-- Component ID --|-- Event ID --|------------ data ------------|
     //|--- 1 byte ---|--- 1 byte ---|------ 1 byte ------|----- 1 byte -----|--- 1 byte ---|-- n bytes = payload length --|
     //|------------------------------------------------ message size -----------------------------------------------------|
-    if(UartHandle->Instance == USART3)
+    if(huart->Instance == USART3)
     {
         esp_com.rx_buff[esp_com.rx_idx++] = esp_com.rx_char;
         if(esp_com.is_rx_enter_frame)
@@ -347,7 +348,6 @@ static void esp_rx_transfer_cplt(UART_HandleTypeDef *UartHandle)
                 {
                     esp_com.payload_len = 0;
                     esp_com.rx_idx = 0;
-                    esp_com.rx_len = 0;
                     esp_com.is_rx_enter_frame = 0;
                     esp_com_release_sem();
                 }

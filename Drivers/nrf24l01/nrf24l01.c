@@ -141,7 +141,7 @@ void nrf24l01_init(void)
   // Set frequency for the RF channel
   nrf24l01_set_rf_channel_freq(40);
   // Setup the on air data rate
-  nrf24l01_set_data_rate(NRF24L01_DR_1MBPS);
+  nrf24l01_set_data_rate(NRF24L01_DR_2MBPS);
   // Set transmit power for nrf24l01
   nrf24l01_set_transmit_power(NRF24L01_TX_PWR_0dBm);
 

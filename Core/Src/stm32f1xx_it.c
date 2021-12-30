@@ -195,8 +195,10 @@ void EXTI1_IRQHandler(void)
   }
 }
 
+int cnt = 0;
 void USART3_IRQHandler(void)
 {
+	cnt++;
   HAL_UART_IRQHandler(&huart3);
 }
 
