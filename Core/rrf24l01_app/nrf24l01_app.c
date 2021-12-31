@@ -220,7 +220,7 @@ static void nrf24l01_thread_entry(void *argument)
                 tx_packet[3] = ESP_CMD_GET_AVAILABLE_SSID;
                 // A byte to notify that there is available ssid or not
                 tx_packet[4] = 0x01;
-                PRINT_INFO_LOG("Available SSID detected: %s\r\n", rx_data.data);
+                PRINT_INFO_LOG("Available SSID detected: %s\r\n", &rx_data.data[2]);
                 memcpy(&tx_packet[5], rx_data.data, rx_data.len);
                 nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, tx_packet, 5 + rx_data.len);
               }
@@ -293,7 +293,7 @@ static void nrf24l01_thread_entry(void *argument)
                 // Payload length = SSID length + command length + Is_available_ssid length
                 tx_packet[2] = rx_data.len + 1 + 1;
                 tx_packet[3] = ESP_CMD_GET_IP;
-                PRINT_INFO_LOG("Successfully get Local IP: %s\r\n", rx_data.data);
+                PRINT_INFO_LOG("Successfully get Local IP: %s\r\n", &rx_data.data[1]);
                 // A byte to notify that there is available ssid or not
                 tx_packet[4] = 0x01;
                 memcpy(&tx_packet[5], rx_data.data, rx_data.len);
@@ -352,7 +352,7 @@ static void nrf24l01_thread_entry(void *argument)
         }
       }
       nrf24l01_clear_all_flags();
-      // memset(data, 0, sizeof(data));
+      memset(&rx_data, 0, sizeof(rx_data));
     }
     // ESP_COM_CS_EXIT();
   }

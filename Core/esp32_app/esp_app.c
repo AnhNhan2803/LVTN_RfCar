@@ -164,7 +164,7 @@ void esp_com_thread_app_init(void)
 *******************************************************************************/
 static void esp_com_thread_entry (void *argument)
 {
-    uint8_t data[ESP_COM_RX_MAX_PACKET_SIZE];
+    uint8_t data[ESP_COM_RX_MAX_PACKET_SIZE] = {0};
     uint8_t tx_packet[ESP_COM_RX_MAX_PACKET_SIZE];
     uint8_t data_len = 0;
     tx_packet[0] = ESP_COM_HEADER1;
@@ -177,6 +177,7 @@ static void esp_com_thread_entry (void *argument)
         esp_com_wait_sem();
 
         // Parse the received data and transmit back ACK for ESP32
+        memset(data, 0, sizeof(data));
         data_len = esp_com_get_current_data(data);
         PRINT_INFO_LOG("SSID len: %d\r\n", data_len);
         if((data[0] == ESP_COM_HEADER1) && (data[1] == ESP_COM_HEADER2))
@@ -197,6 +198,7 @@ static void esp_com_thread_entry (void *argument)
                     }
                     else
                     {
+                        PRINT_INFO_LOG("WIFI - idx:%d - SSID:%s\r\n", data[5], &data[6]);
                         // Append to the a ring buffer to send to Raspberry via RF 
                         esp_com_put_data_into_queue(data);
                     }
@@ -205,6 +207,7 @@ static void esp_com_thread_entry (void *argument)
                 case ESP_CMD_GET_IP:
                     esp_com_put_data_into_queue(data);
                     is_received_ssid_ip = true;
+                    PRINT_INFO_LOG("WIFI Local IP: %s\r\n", &data[5]);
                     break;
 
                 default:
