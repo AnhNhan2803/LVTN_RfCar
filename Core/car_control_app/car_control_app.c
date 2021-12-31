@@ -31,6 +31,7 @@
 /******************************************************************************
 * VARIABLE DEFINITIONS
 *******************************************************************************/
+#if (DEVICE_ROLE == DEVICE_ROLE_RX)
 // Setup all params for creating a thread
 static const osThreadAttr_t car_control_thread_attr =
 {
@@ -44,7 +45,7 @@ static __attribute__((unused)) osThreadId_t car_control_thread_handle;
 * FUNCTION PROTOTYPES
 *******************************************************************************/
 static void car_control_thread_entry (void *argument);
-
+#endif
 /******************************************************************************
 * PUBLIC FUNCTIONS
 *******************************************************************************/
@@ -57,17 +58,20 @@ static void car_control_thread_entry (void *argument);
 *******************************************************************************/
 void car_control_thread_app_init(void)
 {
+#if (DEVICE_ROLE == DEVICE_ROLE_RX)
   // Creating car control app thread
   car_control_thread_handle = osThreadNew(car_control_thread_entry, NULL, &car_control_thread_attr);
   if(car_control_thread_handle != NULL)
   {
     PRINT_INFO_LOG("Successfully create the Car control thread!\r\n");
   }
+#endif
 }
 
 /******************************************************************************
 * STATIC FUNCTIONS
 *******************************************************************************/
+#if (DEVICE_ROLE == DEVICE_ROLE_RX)
 /******************************************************************************
 * Function : static void car_control_thread_entry (void *argument)
 * Brief    : Thread entry handles all operations of Car control module.
@@ -105,4 +109,5 @@ static void car_control_thread_entry (void *argument)
     }
   }
 }
+#endif
 /*************** END OF FILES *************************************************/

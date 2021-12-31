@@ -14,6 +14,7 @@
 /******************************************************************************
  * CONFIGURATION CONSTANTS
  *******************************************************************************/
+#if (DEVICE_ROLE == DEVICE_ROLE_RX)
 #if(USING_FULLY_OUTPUT_PP_MODE)
 // This mode control the motors completely with normal Output pushpull operation
 #define MOTOR_LEFT1_START()                 (HAL_GPIO_WritePin(MOTOR_LEFT1_GPIO_Port, MOTOR_LEFT1_Pin, GPIO_PIN_SET))
@@ -54,6 +55,7 @@ static void car_control_tim_deinit(void);
  * VARIABLE DEFINITIONS
  *******************************************************************************/
 TIM_HandleTypeDef car_control_tim;
+#endif
 
 /******************************************************************************
  * PUBLIC FUNCTIONS
@@ -67,9 +69,11 @@ TIM_HandleTypeDef car_control_tim;
 *******************************************************************************/
 void car_control_init(void)
 {
+#if (DEVICE_ROLE == DEVICE_ROLE_RX)
   car_control_gpio_init();
   car_control_tim_init();
   car_control_exec_cmd(CAR_CTRL_STOP);
+#endif
 }
 
 /******************************************************************************
@@ -81,8 +85,10 @@ void car_control_init(void)
 *******************************************************************************/
 void car_control_deinit(void)
 {
+#if (DEVICE_ROLE == DEVICE_ROLE_RX)
   car_control_gpio_deinit();
   car_control_tim_deinit();
+#endif
 }
 
 /******************************************************************************
@@ -94,6 +100,7 @@ void car_control_deinit(void)
 *******************************************************************************/
 void car_control_exec_cmd(car_ctrl_t cmd)
 {
+#if (DEVICE_ROLE == DEVICE_ROLE_RX)
   // TODO: Need to add Power param for control
   // the duty cycle of PWM for speed changing 
   // purpose
@@ -181,6 +188,7 @@ void car_control_exec_cmd(car_ctrl_t cmd)
       MOTOR_RIGHT2_CONTROL(0);
       break;
   }
+#endif
 }
 
 /******************************************************************************
@@ -192,10 +200,12 @@ void car_control_exec_cmd(car_ctrl_t cmd)
 *******************************************************************************/
 void car_control_pwm_start(void)
 {
+#if (DEVICE_ROLE == DEVICE_ROLE_RX)
     HAL_TIM_PWM_Start(&car_control_tim, TIM_CHANNEL_1);
     HAL_TIM_PWM_Start(&car_control_tim, TIM_CHANNEL_2);
     HAL_TIM_PWM_Start(&car_control_tim, TIM_CHANNEL_3);
     HAL_TIM_PWM_Start(&car_control_tim, TIM_CHANNEL_4);
+#endif
 }
 
 /******************************************************************************
@@ -207,15 +217,18 @@ void car_control_pwm_start(void)
 *******************************************************************************/
 void car_control_pwm_stop(void)
 {
+#if (DEVICE_ROLE == DEVICE_ROLE_RX)
     HAL_TIM_PWM_Stop(&car_control_tim, TIM_CHANNEL_1);
     HAL_TIM_PWM_Stop(&car_control_tim, TIM_CHANNEL_2);
     HAL_TIM_PWM_Stop(&car_control_tim, TIM_CHANNEL_3);
     HAL_TIM_PWM_Stop(&car_control_tim, TIM_CHANNEL_4);
+#endif
 }
 
 /******************************************************************************
  * STATIC FUNCTIONS
  *******************************************************************************/
+#if (DEVICE_ROLE == DEVICE_ROLE_RX)
 /******************************************************************************
 * Function : void car_control_gpio_init(void)
 * Brief    : Initialize GPIO for car control module.
@@ -334,3 +347,6 @@ static void car_control_tim_deinit(void)
     HAL_TIM_PWM_DeInit(&car_control_tim);
     __HAL_RCC_TIM2_CLK_DISABLE();
 }
+#endif
+
+/*************** END OF FILES *************************************************/

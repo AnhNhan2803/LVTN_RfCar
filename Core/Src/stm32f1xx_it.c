@@ -30,7 +30,11 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN TD */
+#if (DEVICE_ROLE == DEVICE_ROLE_RX)
 extern UART_HandleTypeDef huart3;
+#else
+extern PCD_HandleTypeDef hpcd_USB_FS;
+#endif
 
 /* USER CODE END TD */
 
@@ -195,12 +199,21 @@ void EXTI1_IRQHandler(void)
   }
 }
 
+#if (DEVICE_ROLE == DEVICE_ROLE_TX)
+void USB_LP_CAN1_RX0_IRQHandler(void)
+{
+  HAL_PCD_IRQHandler(&hpcd_USB_FS);
+}
+#endif
+
+#if (DEVICE_ROLE == DEVICE_ROLE_RX)
 int cnt = 0;
 void USART3_IRQHandler(void)
 {
 	cnt++;
   HAL_UART_IRQHandler(&huart3);
 }
+#endif
 
 /* USER CODE BEGIN 1 */
 

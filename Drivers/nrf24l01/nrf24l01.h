@@ -30,7 +30,7 @@
 #define NRF24L01_PAYLOAD_HEADER_1               (0xAB)
 #define NRF24L01_PAYLOAD_HEADER_2               (0xBA)
 #define NRF24L01_MAX_NUM_PACKET                 (32)
-#define NRF24L01_PACKET_MAX_SIZE                (10)
+#define NRF24L01_PACKET_MAX_SIZE                (32)
 #define NRF24L01_RX_ACK_PAYLOAD                 "AcKPaYlOaD"
 
 // DEFINITION OF CONFIGURATION FOR NRF24L01

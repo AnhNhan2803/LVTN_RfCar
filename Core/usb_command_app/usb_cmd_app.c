@@ -1,6 +1,6 @@
 /*******************************************************************************
-* Title                 :   esp communication app source file
-* Filename              :   esp_app.c
+* Title                 :   USBCMD app source file
+* Filename              :   usb_cmd_app.c
 * Author                :   Nhan
 * Origin Date           :   Oct 19th 2021
 * Notes                 :   None
@@ -9,70 +9,69 @@
 /*******************************************************************************
 * INCLUDE
 *******************************************************************************/
-#include "esp_app.h"
+#include "usb_cmd_app.h"
 
 /******************************************************************************
 * PREPROCESSOR CONSTANTS
 *******************************************************************************/
-#define ESP_COM_THREAD_NAME             ("esp_com_thread")
-#define ESP_COM_THREAD_STACK_SIZE       (500) // Bytes
-#define ESP_COM_THREAD_PRIORITY         ((osPriority_t) osPriorityHigh)
-#define ESP_COM_TX_ACK                  ("AcK")
+#define USB_CMD_RX_THREAD_NAME             ("usb_cmd_rx_com_thread")
+#define USB_CMD_RX_THREAD_STACK_SIZE       (512) // Bytes
+#define USB_CMD_RX_THREAD_PRIORITY         ((osPriority_t) osPriorityHigh)
+#define USB_CMD_RX_QUEUE_SUB_NAME          ("esp_com_tx_queue")
 
-#define ESP_COM_TX_THREAD_NAME             ("esp_tx_com_thread")
-#define ESP_COM_TX_THREAD_STACK_SIZE       (1024) // Bytes
-#define ESP_COM_TX_THREAD_PRIORITY         ((osPriority_t) osPriorityHigh)
-#define ESP_COM_TX_QUEUE_SUB_NAME          ("esp_com_tx_queue")
+
+#define USB_CMD_TX_THREAD_NAME             ("usb_cmd_tx_com_thread")
+#define USB_CMD_TX_THREAD_STACK_SIZE       (512) // Bytes
+#define USB_CMD_TX_THREAD_PRIORITY         ((osPriority_t) osPriorityHigh)
 
 /******************************************************************************
 * PREPROCESSOR MACROS
 *******************************************************************************/
-#if (DEVICE_ROLE == DEVICE_ROLE_RX)
-#define ESP_APP_CS_INIT()                 esp_app_mutex = osMutexNew(NULL);                                  
-#define ESP_APP_CS_ENTER(timeout_ms)      osMutexAcquire(esp_app_mutex, timeout_ms)     // critical section enter
-#define ESP_APP_CS_EXIT()                 osMutexRelease(esp_app_mutex)                 // critical section end
+#define USB_CMD_CS_INIT()                 usb_cmd_app_mutex = osMutexNew(NULL);                                  
+#define USB_CMD_CS_ENTER(timeout_ms)      osMutexAcquire(usb_cmd_app_mutex, timeout_ms)     // critical section enter
+#define USB_CMD_CS_EXIT()                 osMutexRelease(usb_cmd_app_mutex)                 // critical section end
 
 /******************************************************************************
 * TYPEDEFS
 *******************************************************************************/
-typedef osMessageQueueId_t esp_com_tx_id_t;
+typedef osMessageQueueId_t usb_cmd_rx_id_t;
 
 /******************************************************************************
 * VARIABLE DEFINITIONS
 *******************************************************************************/
 // Setup all params for creating a thread
-static const osThreadAttr_t esp_com_thread_attr =
+static const osThreadAttr_t usb_cmd_rx_thread_attr =
 {
-    .name       = ESP_COM_THREAD_NAME,
-    .priority   = ESP_COM_THREAD_PRIORITY,
-    .stack_size = ESP_COM_THREAD_STACK_SIZE,
+    .name       = USB_CMD_RX_THREAD_NAME,
+    .priority   = USB_CMD_RX_THREAD_PRIORITY,
+    .stack_size = USB_CMD_RX_THREAD_STACK_SIZE,
 };
-static __attribute__((unused)) osThreadId_t esp_com_thread_handle;
+static __attribute__((unused)) osThreadId_t usb_cmd_rx_thread_handle;
+// Setup all params for creating a USB command RX queue
+static uint8_t usb_cmd_rx_msg_data[USB_CMD_RX_QUEUE_MSG_SIZE] = {0};
+static osMessageQueueAttr_t usb_cmd_rx_msg_queue_attr;
+static StaticQueue_t        usb_cmd_rx_xQueueBuffer; // xQueueBuffer will hold the queue structure.
+static usb_cmd_rx_id_t  usb_cmd_rx_msg_queue_id;
 
-static const osThreadAttr_t esp_com_tx_thread_attr =
+
+static const osThreadAttr_t usb_cmd_tx_thread_attr =
 {
-    .name       = ESP_COM_TX_THREAD_NAME,
-    .priority   = ESP_COM_TX_THREAD_PRIORITY,
-    .stack_size = ESP_COM_TX_THREAD_STACK_SIZE,
+    .name       = USB_CMD_TX_THREAD_NAME,
+    .priority   = USB_CMD_TX_THREAD_PRIORITY,
+    .stack_size = USB_CMD_TX_THREAD_STACK_SIZE,
 };
-static __attribute__((unused)) osThreadId_t esp_com_tx_thread_handle;
+static __attribute__((unused)) osThreadId_t usb_cmd_tx_thread_handle;
 
-// Setup all params for creating a Queue
-static uint8_t esp_com_tx_msg_data[ESP_COM_TX_QUEUE_MSG_SIZE] = {0};
-static osMessageQueueAttr_t esp_com_tx_msg_queue_attr;
-static StaticQueue_t        xQueueBuffer; // xQueueBuffer will hold the queue structure.
-static esp_com_tx_id_t  esp_com_tx_msg_queue_id;
-static osMutexId_t esp_app_mutex = NULL;
-bool is_no_available_ssid = false;
-bool is_received_ssid_ip = false;
+static osMutexId_t usb_cmd_app_mutex = NULL;
+// bool is_no_available_ssid = false;
+// bool is_received_ssid_ip = false;
 
 
 /******************************************************************************
 * FUNCTION PROTOTYPES
 *******************************************************************************/
-static void esp_com_thread_entry (void *argument);
-static void esp_com_tx_thread_entry (void *argument);
-#endif
+static void usb_cmd_rx_thread_entry (void *argument);
+static void usb_cmd_tx_thread_entry (void *argument);
 
 /******************************************************************************
 * PUBLIC FUNCTIONS
@@ -84,58 +83,74 @@ static void esp_com_tx_thread_entry (void *argument);
 * Output   : None.
 * Return   : None.
 *******************************************************************************/
-uint8_t esp_com_get_rx_data(uint8_t * pdata, uint8_t * len)
-{
-    uint8_t ret = 0;
-#if (DEVICE_ROLE == DEVICE_ROLE_RX)
-    uint8_t data[ESP_COM_RX_MAX_PACKET_SIZE];
-    //|-- Header 1 --|-- Header 2 --|-- payload length --|--- CMD ---|---- data ----|
-    //|--- 1 byte ---|--- 1 byte ---|------ 1 byte ------|-- 1 byte--|-- n bytes ---|
-    if(!esp_com_get_data_from_queue(data))
-    {
-        ret = 1;
-    }
-    else
-    {
-        // Check 2 headers and a byte of payload length
-        if((data[0] == ESP_COM_HEADER1) && (data[1] == ESP_COM_HEADER2) && (data[2] > 0))
-        {
-            // Assign data length to payload length
-            *len = data[2] - 1;
-            memcpy(pdata, &data[4], *len);
-        }
-        else
-        {
-            ret = 2;
-        }
-    }
-#endif
-    return ret;
-}
+// uint8_t esp_com_get_rx_data(uint8_t * pdata, uint8_t * len)
+// {
+//     uint8_t ret = 0;
+//     uint8_t data[ESP_COM_RX_MAX_PACKET_SIZE];
+//     //|-- Header 1 --|-- Header 2 --|-- payload length --|--- CMD ---|---- data ----|
+//     //|--- 1 byte ---|--- 1 byte ---|------ 1 byte ------|-- 1 byte--|-- n bytes ---|
+//     if(!esp_com_get_data_from_queue(data))
+//     {
+//         ret = 1;
+//     }
+//     else
+//     {
+//         // Check 2 headers and a byte of payload length
+//         if((data[0] == ESP_COM_HEADER1) && (data[1] == ESP_COM_HEADER2) && (data[2] > 0))
+//         {
+//             // Assign data length to payload length
+//             *len = data[2] - 1;
+//             memcpy(pdata, &data[4], *len);
+//         }
+//         else
+//         {
+//             ret = 2;
+//         }
+//     }
+
+//     return ret;
+// }
 
 /******************************************************************************
-* Function : static void esp_com_put_data_tx_to_queue(uint8_t * data, uint8_t len)
+* Function : void usb_cmd_put_data_to_rx_queue(uint8_t * data)(uint8_t * data)
 * Brief    : Put data into Tx uart Queue.
 * Input    : None.
 * Output   : None.
 * Return   : None.
 *******************************************************************************/
-void esp_com_put_data_tx_to_queue(uint8_t * data)
+void usb_cmd_put_data_to_rx_queue(uint8_t * data)
 {
-#if (DEVICE_ROLE == DEVICE_ROLE_RX)
-    ESP_APP_CS_ENTER(osWaitForever);
+    USB_CMD_CS_ENTER(osWaitForever);
     //  TODO: Need a retry mechanism here if Failed to put data into Queue
     osStatus_t status;    
-    status = osMessageQueuePut(esp_com_tx_msg_queue_id, data, 0xff, 0);
+    status = osMessageQueuePut(usb_cmd_rx_msg_queue_id, data, 0xff, 0);
     if(osOK != status)
     {
         // Reset the Queue in case encountered FULL FIFO scenario
-        osMessageQueueReset(esp_com_tx_msg_queue_id);
-        PRINT_ERROR_LOG("Fail to put data into ESP communication queue\r\n");
+        osMessageQueueReset(usb_cmd_rx_msg_queue_id);
+        PRINT_ERROR_LOG("Fail to put data into USB CMD Rx Queue\r\n");
     }
-    ESP_APP_CS_EXIT();
-#endif
+    USB_CMD_CS_EXIT();
 }
+
+/******************************************************************************
+* Function : bool usb_cmd_get_data_from_rx_queue(uint8_t * data)
+* Brief    : Put data into Tx uart Queue.
+* Input    : None.
+* Output   : None.
+* Return   : None.
+*******************************************************************************/
+bool usb_cmd_get_data_from_rx_queue(uint8_t * data)
+{
+	bool ret = true;
+
+    if(osMessageQueueGet(usb_cmd_rx_msg_queue_id, data, NULL, osWaitForever) != osOK)
+    {
+        ret = false
+    }
+
+    return ret;
+}	
 
 /******************************************************************************
 * Function : void car_control_thread_app_init(void)
@@ -146,43 +161,60 @@ void esp_com_put_data_tx_to_queue(uint8_t * data)
 *******************************************************************************/
 void esp_com_thread_app_init(void)
 {
-#if (DEVICE_ROLE == DEVICE_ROLE_RX)
     // Creating esp communication app thread
-    esp_com_thread_handle = osThreadNew(esp_com_thread_entry, NULL, &esp_com_thread_attr);
-    esp_com_tx_thread_handle = osThreadNew(esp_com_tx_thread_entry, NULL, &esp_com_tx_thread_attr);
-    ESP_APP_CS_INIT();
-		esp_com_init();
-    if(esp_com_thread_handle != NULL)
+    usb_cmd_rx_thread_handle = osThreadNew(usb_cmd_rx_thread_entry, NULL, &usb_cmd_rx_thread_attr);
+    usb_cmd_tx_thread_handle = osThreadNew(usb_cmd_tx_thread_entry, NULL, &usb_cmd_tx_thread_attr);
+    USB_CMD_CS_INIT(); 
+    if(usb_cmd_rx_thread_handle != NULL)
     {
-        PRINT_INFO_LOG("Successfully create the ESP communication thread!\r\n");
+        PRINT_INFO_LOG("Successfully create the USB CMD thread!\r\n");
     }
-#endif
 }
 
 /******************************************************************************
 * STATIC FUNCTIONS
 *******************************************************************************/
 /******************************************************************************
-* Function : static void esp_com_thread_entry (void *argument)
-* Brief    : Thread entry handles all operations of esp communication module.
+* Function : static void usb_cmd_rx_thread_entry (void *argument)
+* Brief    : Thread entry handles all operations of usb command RX.
 * Input    : None.
 * Output   : None.
 * Return   : None.
 *******************************************************************************/
-#if (DEVICE_ROLE == DEVICE_ROLE_RX)
-static void esp_com_thread_entry (void *argument)
+static void usb_cmd_rx_thread_entry (void *argument)
 {
-    uint8_t data[ESP_COM_RX_MAX_PACKET_SIZE] = {0};
-    uint8_t tx_packet[ESP_COM_RX_MAX_PACKET_SIZE];
-    uint8_t data_len = 0;
-    tx_packet[0] = ESP_COM_HEADER1;
-    tx_packet[1] = ESP_COM_HEADER2;
+    uint8_t data[USB_CMD_RX_MAX_PACKET_SIZE] = {0};
+    // uint8_t tx_packet[ESP_COM_RX_MAX_PACKET_SIZE];
+    // uint8_t data_len = 0;
+    // tx_packet[0] = ESP_COM_HEADER1;
+    // tx_packet[1] = ESP_COM_HEADER2;
+
+    usb_cmd_rx_msg_queue_attr.name      = USB_CMD_RX_QUEUE_SUB_NAME;
+    usb_cmd_rx_msg_queue_attr.cb_mem    = &usb_cmd_rx_xQueueBuffer;
+    usb_cmd_rx_msg_queue_attr.cb_size   = sizeof(usb_cmd_rx_xQueueBuffer);
+    usb_cmd_rx_msg_queue_attr.mq_mem    = usb_cmd_rx_msg_data;
+    usb_cmd_rx_msg_queue_attr.mq_size   = USB_CMD_RX_QUEUE_MSG_SIZE;
+    usb_cmd_rx_msg_queue_id = osMessageQueueNew(USB_CMD_RX_MAX_NUM_MSG, 
+                                        USB_CMD_RX_MSG_SIZE, &usb_cmd_rx_msg_queue_attr);  
     //|-- Header 1 --|-- Header 2 --|-- payload length --|--- CMD ---|---- data ----|
     //|--- 1 byte ---|--- 1 byte ---|------ 1 byte ------|-- 1 byte--|-- n bytes ---|
 
+
+
     while(1)
     {
-        esp_com_wait_sem();
+
+        // Wait for data from PC via USB Virtual COM Port
+        if(usb_cmd_get_data_from_rx_queue(data))
+        {
+            memset(data, 0, sizeof(data));
+            PRINT_INFO_LOG("Receive data from PC\r\n");
+
+        }
+        else
+        {
+
+        }
 
         // Parse the received data and transmit back ACK for ESP32
         memset(data, 0, sizeof(data));
@@ -232,13 +264,13 @@ static void esp_com_thread_entry (void *argument)
 }
 
 /******************************************************************************
-* Function : static void esp_com_tx_thread_entry (void *argument)
-* Brief    : Thread entry handles all operations of esp communication Tx module.
+* Function : static void usb_cmd_tx_thread_entry (void *argument)
+* Brief    : Thread entry handles all operations of usb command Tx module.
 * Input    : None.
 * Output   : None.
 * Return   : None.
 *******************************************************************************/
-static void esp_com_tx_thread_entry (void *argument)
+static void usb_cmd_tx_thread_entry (void *argument)
 {
     //|-- Header 1 --|-- Header 2 --|-- payload length --|--- CMD ---|---- data ----|
     //|--- 1 byte ---|--- 1 byte ---|------ 1 byte ------|-- 1 byte--|-- n bytes ---|
@@ -246,13 +278,8 @@ static void esp_com_tx_thread_entry (void *argument)
     uint8_t data[ESP_COM_RX_MAX_PACKET_SIZE];
     // Init the Queue for storing all data
     // received from NRF24L01
-    esp_com_tx_msg_queue_attr.name      = ESP_COM_TX_QUEUE_SUB_NAME;
-    esp_com_tx_msg_queue_attr.cb_mem    = &xQueueBuffer;
-    esp_com_tx_msg_queue_attr.cb_size   = sizeof(xQueueBuffer);
-    esp_com_tx_msg_queue_attr.mq_mem    = esp_com_tx_msg_data;
-    esp_com_tx_msg_queue_attr.mq_size   = ESP_COM_TX_QUEUE_MSG_SIZE;
-    esp_com_tx_msg_queue_id = osMessageQueueNew(ESP_COM_TX_MAX_NUM_MSG, 
-                                        ESP_COM_TX_MSG_SIZE, &esp_com_tx_msg_queue_attr);   
+	
+		// uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len)
 
     while(1)
     {
@@ -269,6 +296,5 @@ static void esp_com_tx_thread_entry (void *argument)
         }
     }
 }
-#endif
 
 /*************** END OF FILES *************************************************/

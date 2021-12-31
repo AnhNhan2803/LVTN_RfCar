@@ -37,7 +37,9 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-
+#define DEVICE_ROLE_TX     (0)
+#define DEVICE_ROLE_RX     (1)
+#define DEVICE_ROLE        (DEVICE_ROLE_RX)
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/

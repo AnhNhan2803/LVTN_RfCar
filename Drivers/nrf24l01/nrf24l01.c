@@ -127,17 +127,52 @@ void nrf24l01_data_wait_new_data(void)
 *******************************************************************************/
 void nrf24l01_init(void)
 {
-  // uint8_t value = 0;
+  uint8_t value;
   nrf24l01_gpio_init();
   nrf24l01_spi_init();
   osDelay(2);
   
   nrf24l01_print_all_configurations();
 
-  /* Config all parameters here */ 
+	/* Config all parameters here */ 
+#if (DEVICE_ROLE == DEVICE_ROLE_TX)
   // Set 1550uS timeout
-  // value = 0x4F;
-  // nrf24l01_write_regs(NRF24L01_REG_SETUP_RETR, &value, sizeof(value));
+	value = 0x4F;
+  nrf24l01_write_regs(NRF24L01_REG_SETUP_RETR, &value, sizeof(value));
+  // Set frequency for the RF channel
+  nrf24l01_set_rf_channel_freq(40);
+  // Setup the on air data rate
+  nrf24l01_set_data_rate(NRF24L01_DR_2MBPS);
+  // Set transmit power for nrf24l01
+  nrf24l01_set_transmit_power(NRF24L01_TX_PWR_0dBm);
+  // Enable CRC- 2bytes
+  nrf24l01_set_data_regs(NRF24L01_REG_CONFIG, ~(0x04), 0x04);
+	
+  // Set the address width for TX/RX
+  nrf24l01_set_address_width(NRF24L01_ADDR_WIDTH_3BYTES);
+	
+  // Set TX and RX address for opening writing pipe on Data pipe 0
+  nrf24l01_set_rx_address(NRF24L01_DATA_PIPE_0, nrf24l01_rx_adrr, sizeof(nrf24l01_rx_adrr));
+  nrf24l01_set_tx_address(nrf24l01_rx_adrr, sizeof(nrf24l01_rx_adrr));
+  // Set payload size for Writing pipe
+  nrf24l01_set_payload_size(NRF24L01_DATA_PIPE_0, NRF24L01_PACKET_MAX_SIZE);
+	
+  nrf24l01_clear_all_flags();
+  // Enable interrupt for RX data ready
+  nrf24l01_enable_interrupt(NRF24L01_INT_RX_DR_ENABLE);
+	
+  // Enable Dynamic payload length
+  nrf24l01_enable_dynamic_payloads();
+  // Enable ACK payload
+  nrf24l01_enable_ack_payload();
+
+	// Set nrf24l01 operation mode as TX  
+  nrf24l01_txrx_control(NEF24L01_TXRX_CTRL_TX_ENABLE);
+	
+  // Exit the power down mode
+  nrf24l01_enter_power_down_mode(false);
+	
+#else
   // Set frequency for the RF channel
   nrf24l01_set_rf_channel_freq(40);
   // Setup the on air data rate
@@ -150,15 +185,11 @@ void nrf24l01_init(void)
 
   // Set the address width for TX/RX
   nrf24l01_set_address_width(NRF24L01_ADDR_WIDTH_3BYTES);
-  // Set TX and RX address for opening writing pipe on Data pipe 0
-  // nrf24l01_set_rx_address(NRF24L01_DATA_PIPE_0, nrf24l01_tx_adrr, sizeof(nrf24l01_tx_adrr));
-  // nrf24l01_set_tx_address(nrf24l01_tx_adrr, sizeof(nrf24l01_tx_adrr));
-  // // Set payload size for Writing pipe
-  // nrf24l01_set_payload_size(NRF24L01_DATA_PIPE_0, 10);
+
   // Open Reading pipe on Data pipe 1
   nrf24l01_set_rx_address(NRF24L01_DATA_PIPE_1, nrf24l01_rx_adrr, sizeof(nrf24l01_rx_adrr));
   // Set payload size for Reading pipe
-  nrf24l01_set_payload_size(NRF24L01_DATA_PIPE_1, NRF24L01_MAX_NUM_PACKET);
+  nrf24l01_set_payload_size(NRF24L01_DATA_PIPE_1, NRF24L01_PACKET_MAX_SIZE);
   nrf24l01_clear_all_flags();
   // Enable interrupt for RX data ready
   nrf24l01_enable_interrupt(NRF24L01_INT_RX_DR_ENABLE);
@@ -179,6 +210,7 @@ void nrf24l01_init(void)
   
   nrf24l01_print_all_configurations();
   nrf24l01_enter_rx_mode();
+#endif
 
   nrf24l01_data_sem = osSemaphoreNew(1, 0, NULL);
 }

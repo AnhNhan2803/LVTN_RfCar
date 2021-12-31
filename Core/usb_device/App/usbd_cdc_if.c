@@ -21,6 +21,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "usbd_cdc_if.h"
+#include "usb_cmd_app.h"
 
 /* USER CODE BEGIN INCLUDE */
 
@@ -259,7 +260,17 @@ static int8_t CDC_Control_FS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
   */
 static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
 {
+  //|-- Header 1 --|-- Header 2 --|-- payload length --|-- NRF24L01Command --|---- data ----|
+  //|--- 1 byte ---|--- 1 byte ---|------ 1 byte ------|------ 1 byte -------|-- n bytes ---|
   /* USER CODE BEGIN 6 */
+	// Put data received from PC via USB CDC to Rx Queue
+	// Parse the request of this command and send to MCU
+	// for processing purpose
+	if(*Len <= 30)
+	{
+		usb_cmd_put_data_to_rx_queue(Buf);		
+	}
+
   USBD_CDC_SetRxBuffer(&hUsbDeviceFS, &Buf[0]);
   USBD_CDC_ReceivePacket(&hUsbDeviceFS);
   return (USBD_OK);
@@ -279,6 +290,8 @@ static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
   */
 uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len)
 {
+  //|-- Header 1 --|-- Header 2 --|-- payload length --|-- NRF24L01Command --|---- data ----|
+  //|--- 1 byte ---|--- 1 byte ---|------ 1 byte ------|------ 1 byte -------|-- n bytes ---|
   uint8_t result = USBD_OK;
   /* USER CODE BEGIN 7 */
   USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef*)hUsbDeviceFS.pClassData;

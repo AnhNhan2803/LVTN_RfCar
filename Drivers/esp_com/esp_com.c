@@ -22,8 +22,7 @@
 #define ESP_UART_RX_PIN      (ESP_UART_RX_Pin)         
 #define ESP_UART_RX_PORT     (ESP_UART_RX_GPIO_Port)
 
-#define ESP_UART_MAX_BUF     (128)
-
+#if (DEVICE_ROLE == DEVICE_ROLE_RX)
 #define ESP_COM_CS_INIT()                 esp_com_mutex = osMutexNew(NULL);                                  
 #define ESP_COM_CS_ENTER(timeout_ms)      osMutexAcquire(esp_com_mutex, timeout_ms)     // critical section enter
 #define ESP_COM_CS_EXIT()                 osMutexRelease(esp_com_mutex)                 // critical section end
@@ -59,7 +58,7 @@ void esp_gpio_init(void);
 void esp_uart_init(void);
 void esp_gpio_deinit(void);
 void esp_uart_deinit(void);
-static void esp_rx_transfer_cplt(UART_HandleTypeDef *UartHandle);
+#endif
 
 /******************************************************************************
 * PUBLIC FUNCTIONS
@@ -73,10 +72,12 @@ static void esp_rx_transfer_cplt(UART_HandleTypeDef *UartHandle);
 *******************************************************************************/
 void esp_com_init(void)
 {   
+#if (DEVICE_ROLE == DEVICE_ROLE_RX)
     esp_data_sem = osSemaphoreNew(100, 0, NULL);
     ESP_COM_CS_INIT();
     esp_gpio_init();
     esp_uart_init();
+#endif
 }
 
 /******************************************************************************
@@ -88,8 +89,10 @@ void esp_com_init(void)
 *******************************************************************************/
 void esp_com_deinit(void)
 {
+#if (DEVICE_ROLE == DEVICE_ROLE_RX)
     esp_gpio_deinit();
     esp_uart_deinit();
+#endif
 }
 
 /******************************************************************************
@@ -101,7 +104,9 @@ void esp_com_deinit(void)
 *******************************************************************************/
 void esp_com_wait_sem(void)
 {
+#if (DEVICE_ROLE == DEVICE_ROLE_RX)
     osSemaphoreAcquire(esp_data_sem, osWaitForever);
+#endif
 }
 
 /******************************************************************************
@@ -113,7 +118,9 @@ void esp_com_wait_sem(void)
 *******************************************************************************/
 void esp_com_release_sem(void)
 {
+#if (DEVICE_ROLE == DEVICE_ROLE_RX)
     osSemaphoreRelease(esp_data_sem);
+#endif
 }
 
 /******************************************************************************
@@ -126,12 +133,13 @@ void esp_com_release_sem(void)
 bool esp_com_transmit_data(uint8_t * data, uint8_t len)
 {
     bool ret = true;
+#if (DEVICE_ROLE == DEVICE_ROLE_RX)
     if(HAL_UART_Transmit(&huart3, data, len, 
                         ESP_COM_TRANSFER_TIMEOUT) != HAL_OK)
     {
         ret = false;
     }
-
+#endif
     return ret;
 }
 
@@ -144,6 +152,7 @@ bool esp_com_transmit_data(uint8_t * data, uint8_t len)
 *******************************************************************************/
 bool esp_com_put_data_into_queue(uint8_t * pdata)
 {
+#if (DEVICE_ROLE == DEVICE_ROLE_RX)
     int next;
     ESP_COM_CS_ENTER(osWaitForever);
     // next is where head will point to after this write. 
@@ -170,6 +179,7 @@ bool esp_com_put_data_into_queue(uint8_t * pdata)
     esp_com_data.head = next;                                  // head to next data offset.
     esp_com_data.cnt++;
     ESP_COM_CS_EXIT();
+#endif
     return true; 
 }
 
@@ -182,6 +192,7 @@ bool esp_com_put_data_into_queue(uint8_t * pdata)
 *******************************************************************************/
 bool esp_com_get_data_from_queue(uint8_t * pdata)
 {
+#if (DEVICE_ROLE == DEVICE_ROLE_RX)
     int next;
     ESP_COM_CS_ENTER(osWaitForever);
     // if the head == tail, we don't have any data
@@ -204,6 +215,7 @@ bool esp_com_get_data_from_queue(uint8_t * pdata)
     esp_com_data.tail = next;      
     esp_com_data.cnt--;       
     ESP_COM_CS_EXIT();    
+#endif
     return true;  
 }
 
@@ -217,19 +229,21 @@ bool esp_com_get_data_from_queue(uint8_t * pdata)
 uint8_t esp_com_get_current_data(uint8_t * pdata)
 {   
     uint8_t ret = 0;
+#if (DEVICE_ROLE == DEVICE_ROLE_RX)
     if (esp_com.rx_len > 0)
     {
         memcpy(pdata, esp_com.rx_buff, esp_com.rx_len);
         ret = esp_com.rx_len;
         esp_com.rx_len = 0;
     }    
-
+#endif
     return ret;
 }
 
 /******************************************************************************
 * STATIC FUNCTIONS
 *******************************************************************************/
+#if (DEVICE_ROLE == DEVICE_ROLE_RX)
 /******************************************************************************
 * Function : void esp_gpio_init(void)
 * Brief    : Initialize GPIO for esp communication module
@@ -372,5 +386,5 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
     HAL_UART_Receive_IT(&huart3, &esp_com.rx_char, 1);   
 }
-
+#endif
 /*************** END OF FILES *************************************************/
