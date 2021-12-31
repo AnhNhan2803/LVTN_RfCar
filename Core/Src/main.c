@@ -25,6 +25,7 @@
 #include "nrf24l01_app.h"
 #include "car_control_app.h"
 #include "esp_app.h"
+#include "usb_device.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */

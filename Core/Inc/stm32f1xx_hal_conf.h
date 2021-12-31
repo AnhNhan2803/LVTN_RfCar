@@ -52,7 +52,7 @@
 /*#define HAL_NOR_MODULE_ENABLED   */
 /*#define HAL_NAND_MODULE_ENABLED   */
 /*#define HAL_PCCARD_MODULE_ENABLED   */
-/*#define HAL_PCD_MODULE_ENABLED   */
+#define HAL_PCD_MODULE_ENABLED   
 /*#define HAL_HCD_MODULE_ENABLED   */
 /*#define HAL_PWR_MODULE_ENABLED   */
 /*#define HAL_RCC_MODULE_ENABLED   */
@@ -144,7 +144,7 @@
 #define  USE_HAL_NAND_REGISTER_CALLBACKS        0U /* NAND register callback disabled      */
 #define  USE_HAL_NOR_REGISTER_CALLBACKS         0U /* NOR register callback disabled       */
 #define  USE_HAL_PCCARD_REGISTER_CALLBACKS      0U /* PCCARD register callback disabled    */
-#define  USE_HAL_PCD_REGISTER_CALLBACKS         0U /* PCD register callback disabled       */
+#define  USE_HAL_PCD_REGISTER_CALLBACKS         1U /* PCD register callback disabled       */
 #define  USE_HAL_RTC_REGISTER_CALLBACKS         1U /* RTC register callback disabled       */
 #define  USE_HAL_SD_REGISTER_CALLBACKS          0U /* SD register callback disabled        */
 #define  USE_HAL_SMARTCARD_REGISTER_CALLBACKS   0U /* SMARTCARD register callback disabled */

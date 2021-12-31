@@ -25,6 +25,7 @@
 #include "usbd_def.h"
 #include "usbd_core.h"
 #include "usbd_cdc.h"
+#include "log_debug.h"
 
 /* USER CODE BEGIN Includes */
 
@@ -40,7 +41,6 @@
 /* USER CODE END PV */
 
 PCD_HandleTypeDef hpcd_USB_FS;
-void Error_Handler(void);
 
 /* USER CODE BEGIN 0 */
 
