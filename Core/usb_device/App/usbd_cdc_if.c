@@ -21,7 +21,8 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "usbd_cdc_if.h"
-#include "usb_cmd_app.h"
+// #include "usb_cmd_app.h"
+#include "nrf24l01_app.h"
 
 /* USER CODE BEGIN INCLUDE */
 
@@ -263,12 +264,10 @@ static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
   //|-- Header 1 --|-- Header 2 --|-- payload length --|-- NRF24L01Command --|---- data ----|
   //|--- 1 byte ---|--- 1 byte ---|------ 1 byte ------|------ 1 byte -------|-- n bytes ---|
   /* USER CODE BEGIN 6 */
-	// Put data received from PC via USB CDC to Rx Queue
-	// Parse the request of this command and send to MCU
-	// for processing purpose
+	// Put data received from PC via USB CDC to Tx Queue of NRF24L01
 	if(*Len <= 30)
 	{
-		usb_cmd_put_data_to_rx_queue(Buf);		
+		nrf24l01_put_data_into_tx_queue(Buf);		
 	}
 
   USBD_CDC_SetRxBuffer(&hUsbDeviceFS, &Buf[0]);

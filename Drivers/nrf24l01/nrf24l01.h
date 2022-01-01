@@ -160,12 +160,13 @@ void nrf24l01_set_static_payload_length(rx_data_pipe_t data_pipe, uint8_t len);
 uint8_t nrf24l01_num_available_data_fifo(void); 
 void nrf24l01_enable_interrupt(uint8_t int_type);
 void nrf24l01_data_ready_callback(void);
-void nrf24l01_data_wait_new_data(void);
+bool nrf24l01_data_wait_new_data(void);
 void nrf24l01_set_payload_size(rx_data_pipe_t data_pipe, uint32_t size);
 void nrf24l01_enable_dynamic_payloads(void);
 void nrf24l01_enable_ack_payload(void);
 void nrf24l01_print_all_configurations(void);
 uint8_t nrf24l01_read_fifo_status(void);
+uint8_t nrf24l01_get_status(void);
 void nrf24l01_clear_all_flags(void);
 void nrf24l01_write_back_ack_payload(rx_data_pipe_t pipe, uint8_t* pdata, uint8_t len);
 

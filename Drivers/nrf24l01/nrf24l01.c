@@ -107,15 +107,25 @@ void nrf24l01_data_ready_callback(void)
 }
 
 /******************************************************************************
-* Function : void nrf24l01_data_wait_new_data(void)
+* Function : bool nrf24l01_data_wait_new_data(void)
 * Brief    : Wait for a semaphore from NRF24L01 interrupt.
 * Input    : None.
 * Output   : None.
 * Return   : None.
 *******************************************************************************/
-void nrf24l01_data_wait_new_data(void)
+bool nrf24l01_data_wait_new_data(void)
 {
+  bool ret = true;
+#if (DEVICE_ROLE == DEVICE_ROLE_TX)
+  if(osSemaphoreAcquire(nrf24l01_data_sem, 50) != osOK)
+  {
+    ret = false;
+  }
+#else
   osSemaphoreAcquire(nrf24l01_data_sem, osWaitForever);
+#endif
+
+  return ret;
 }
 
 /******************************************************************************
@@ -130,7 +140,7 @@ void nrf24l01_init(void)
   uint8_t value;
   nrf24l01_gpio_init();
   nrf24l01_spi_init();
-  osDelay(2);
+  HAL_Delay(2);
   
   nrf24l01_print_all_configurations();
 
@@ -694,6 +704,20 @@ void nrf24l01_write_back_ack_payload(rx_data_pipe_t pipe, uint8_t* pdata, uint8_
 }
 
 /******************************************************************************
+* Function : uint8_t nrf24l01_get_status(void)
+* Brief    : Get status of register 0x07.
+* Input    : None.
+* Output   : None.
+* Return   : None.
+*******************************************************************************/
+uint8_t nrf24l01_get_status(void)
+{
+  uint8_t value;
+  nrf24l01_read_regs(NRF24L01_REG_STATUS, &value, 1);
+  return value;
+}
+
+/******************************************************************************
 * Function : void nrf24l01_print_all_configurations(void)
 * Brief    : Print all configured parameters.
 * Input    : None.
@@ -808,7 +832,7 @@ static void nrf24l01_gpio_init(void)
     HAL_GPIO_Init(NRF24L01_CE_GPIO_Port, &GPIO_InitStruct);
 
     GPIO_InitStruct.Pin = NRF24L01_IRQ_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(NRF24L01_IRQ_GPIO_Port, &GPIO_InitStruct);
 

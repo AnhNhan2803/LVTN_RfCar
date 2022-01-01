@@ -146,7 +146,7 @@ bool usb_cmd_get_data_from_rx_queue(uint8_t * data)
 
     if(osMessageQueueGet(usb_cmd_rx_msg_queue_id, data, NULL, osWaitForever) != osOK)
     {
-        ret = false
+        ret = false;
     }
 
     return ret;
@@ -162,7 +162,7 @@ bool usb_cmd_get_data_from_rx_queue(uint8_t * data)
 void esp_com_thread_app_init(void)
 {
     // Creating esp communication app thread
-    usb_cmd_rx_thread_handle = osThreadNew(usb_cmd_rx_thread_entry, NULL, &usb_cmd_rx_thread_attr);
+    // usb_cmd_rx_thread_handle = osThreadNew(usb_cmd_rx_thread_entry, NULL, &usb_cmd_rx_thread_attr);
     usb_cmd_tx_thread_handle = osThreadNew(usb_cmd_tx_thread_entry, NULL, &usb_cmd_tx_thread_attr);
     USB_CMD_CS_INIT(); 
     if(usb_cmd_rx_thread_handle != NULL)
@@ -183,84 +183,44 @@ void esp_com_thread_app_init(void)
 *******************************************************************************/
 static void usb_cmd_rx_thread_entry (void *argument)
 {
-    uint8_t data[USB_CMD_RX_MAX_PACKET_SIZE] = {0};
+    // uint8_t data[USB_CMD_RX_MAX_PACKET_SIZE] = {0};
     // uint8_t tx_packet[ESP_COM_RX_MAX_PACKET_SIZE];
-    // uint8_t data_len = 0;
     // tx_packet[0] = ESP_COM_HEADER1;
     // tx_packet[1] = ESP_COM_HEADER2;
 
-    usb_cmd_rx_msg_queue_attr.name      = USB_CMD_RX_QUEUE_SUB_NAME;
-    usb_cmd_rx_msg_queue_attr.cb_mem    = &usb_cmd_rx_xQueueBuffer;
-    usb_cmd_rx_msg_queue_attr.cb_size   = sizeof(usb_cmd_rx_xQueueBuffer);
-    usb_cmd_rx_msg_queue_attr.mq_mem    = usb_cmd_rx_msg_data;
-    usb_cmd_rx_msg_queue_attr.mq_size   = USB_CMD_RX_QUEUE_MSG_SIZE;
-    usb_cmd_rx_msg_queue_id = osMessageQueueNew(USB_CMD_RX_MAX_NUM_MSG, 
-                                        USB_CMD_RX_MSG_SIZE, &usb_cmd_rx_msg_queue_attr);  
-    //|-- Header 1 --|-- Header 2 --|-- payload length --|--- CMD ---|---- data ----|
-    //|--- 1 byte ---|--- 1 byte ---|------ 1 byte ------|-- 1 byte--|-- n bytes ---|
+    // // uint8_t data_len = 0;
+
+    // usb_cmd_rx_msg_queue_attr.name      = USB_CMD_RX_QUEUE_SUB_NAME;
+    // usb_cmd_rx_msg_queue_attr.cb_mem    = &usb_cmd_rx_xQueueBuffer;
+    // usb_cmd_rx_msg_queue_attr.cb_size   = sizeof(usb_cmd_rx_xQueueBuffer);
+    // usb_cmd_rx_msg_queue_attr.mq_mem    = usb_cmd_rx_msg_data;
+    // usb_cmd_rx_msg_queue_attr.mq_size   = USB_CMD_RX_QUEUE_MSG_SIZE;
+    // usb_cmd_rx_msg_queue_id = osMessageQueueNew(USB_CMD_RX_MAX_NUM_MSG, 
+    //                                     USB_CMD_RX_MSG_SIZE, &usb_cmd_rx_msg_queue_attr);  
+    // //|-- Header 1 --|-- Header 2 --|-- payload length --|--- CMD ---|---- data ----|
+    // //|--- 1 byte ---|--- 1 byte ---|------ 1 byte ------|-- 1 byte--|-- n bytes ---|
 
 
+    // while(1)
+    // {
+    
+    //     // Wait for data from PC via USB Virtual COM Port
+    //     if(usb_cmd_get_data_from_rx_queue(data))
+    //     {
+    //         memset(data, 0, sizeof(data));
+    //         PRINT_INFO_LOG("Receive data from PC\r\n");
 
-    while(1)
-    {
+    //         if((data[0] == USB_CMD_HEADER1) && (data[1] == USB_CMD_HEADER2))
+    //         {   
+                
+    //         }   
+    //     }
+    //     else
+    //     {
 
-        // Wait for data from PC via USB Virtual COM Port
-        if(usb_cmd_get_data_from_rx_queue(data))
-        {
-            memset(data, 0, sizeof(data));
-            PRINT_INFO_LOG("Receive data from PC\r\n");
+    //     }
 
-        }
-        else
-        {
-
-        }
-
-        // Parse the received data and transmit back ACK for ESP32
-        memset(data, 0, sizeof(data));
-        data_len = esp_com_get_current_data(data);
-        PRINT_INFO_LOG("SSID len: %d\r\n", data_len);
-        if((data[0] == ESP_COM_HEADER1) && (data[1] == ESP_COM_HEADER2))
-        {
-            switch(data[3])
-            {
-                case ESP_CMD_CONNECT:
-                case ESP_CMD_DISCONNECT:
-                case ESP_CMD_SET_SSID:
-                case ESP_CMD_GET_RSSI:
-                    break;
-
-                case ESP_CMD_GET_AVAILABLE_SSID:
-                    // There is no available SSID
-                    if((data[2] == 0x02) && (data[4] == 0x00))
-                    {
-                        is_no_available_ssid = true;
-                    }
-                    else
-                    {
-                        PRINT_INFO_LOG("WIFI - idx:%d - SSID:%s\r\n", data[5], &data[6]);
-                        // Append to the a ring buffer to send to Raspberry via RF 
-                        esp_com_put_data_into_queue(data);
-                    }
-                    break;
-
-                case ESP_CMD_GET_IP:
-                    esp_com_put_data_into_queue(data);
-                    is_received_ssid_ip = true;
-                    PRINT_INFO_LOG("WIFI Local IP: %s\r\n", &data[5]);
-                    break;
-
-                default:
-                    break;
-            }
-
-            // Append the TX packet to Tx queue
-            // Transmit ACK back to ESP32
-            tx_packet[2] = 0x01;
-            tx_packet[3] = ESP_CMD_RESPONSE_ACK;
-            esp_com_put_data_tx_to_queue(tx_packet);
-        }   
-    }
+    // }
 }
 
 /******************************************************************************
@@ -283,17 +243,17 @@ static void usb_cmd_tx_thread_entry (void *argument)
 
     while(1)
     {
-        // Wait for tx data
-        status = osMessageQueueGet(esp_com_tx_msg_queue_id, data, NULL, osWaitForever);
+        // // Wait for tx data
+        // status = osMessageQueueGet(esp_com_tx_msg_queue_id, data, NULL, osWaitForever);
         
-        if((status == osOK) && (data[0] == ESP_COM_HEADER1) && (data[1] == ESP_COM_HEADER2))
-        {
-            if(!esp_com_transmit_data(data, ESP_COM_HEADER_SIZE + ESP_COM_PAYLOAD_LEN_SIZE + data[2]))
-            {
-                PRINT_ERROR_LOG("Fail to transmit data from MCU to ESP32!\r\n");
-            }
-            osDelay(10);
-        }
+        // if((status == osOK) && (data[0] == ESP_COM_HEADER1) && (data[1] == ESP_COM_HEADER2))
+        // {
+        //     if(!esp_com_transmit_data(data, ESP_COM_HEADER_SIZE + ESP_COM_PAYLOAD_LEN_SIZE + data[2]))
+        //     {
+        //         PRINT_ERROR_LOG("Fail to transmit data from MCU to ESP32!\r\n");
+        //     }
+        //     osDelay(10);
+        // }
     }
 }
 
