@@ -265,10 +265,12 @@ static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
   //|--- 1 byte ---|--- 1 byte ---|------ 1 byte ------|------ 1 byte -------|-- n bytes ---|
   /* USER CODE BEGIN 6 */
 	// Put data received from PC via USB CDC to Tx Queue of NRF24L01
+#if (DEVICE_ROLE == DEVICE_ROLE_TX)
 	if(*Len <= 30)
 	{
 		nrf24l01_put_data_into_tx_queue(Buf);		
 	}
+#endif
 
   USBD_CDC_SetRxBuffer(&hUsbDeviceFS, &Buf[0]);
   USBD_CDC_ReceivePacket(&hUsbDeviceFS);

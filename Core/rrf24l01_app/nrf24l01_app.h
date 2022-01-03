@@ -23,7 +23,6 @@
 #include "log_debug.h"
 #include "esp_com.h"
 #include "esp_app.h"
-#include "usb_cmd_app.h"
 #include "usbd_cdc_if.h"
 
 /******************************************************************************
@@ -32,9 +31,9 @@
 #if (DEVICE_ROLE == DEVICE_ROLE_RX)
 #define NRF24L01_MSG_SIZE            (NRF24L01_PACKET_MAX_SIZE)
 #else
-#define NRF24L01_MSG_SIZE            (USB_CMD_RX_MSG_SIZE)
+#define NRF24L01_MSG_SIZE            (30)
 #endif
-#define NRF24L01_MAX_NUM_MSG         (20)
+#define NRF24L01_MAX_NUM_MSG         (30)
 #define NRF24L01_QUEUE_MSG_SIZE      (NRF24L01_MSG_SIZE * NRF24L01_MAX_NUM_MSG)
 
 // Send 2 times to ensure that the ACK payload 
@@ -101,7 +100,7 @@ void nrf24l01_thread_app_init(void);
 osStatus_t nrf24l01_get_chunk_data(nrf24l01_data_t * pdata);
 #else
 bool nrf24l01_put_data_into_tx_queue(uint8_t * data);
-bool nrf24l01_get_data_from_tx_queue(uint8_t * data)
+bool nrf24l01_get_data_from_tx_queue(uint8_t * data);
 #endif
 
 #endif // NRF24L01_APP_H_

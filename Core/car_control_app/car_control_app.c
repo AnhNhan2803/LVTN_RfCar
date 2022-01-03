@@ -16,7 +16,7 @@
 *******************************************************************************/
 #define CAR_CONTROL_THREAD_NAME             ("car_control_thread")
 #define CAR_CONTROL_THREAD_STACK_SIZE       (500) // Bytes
-#define CAR_CONTROL_THREAD_PRIORITY         ((osPriority_t) osPriorityHigh)
+#define CAR_CONTROL_THREAD_PRIORITY         ((osPriority_t) osPriorityHigh1)
 
 /******************************************************************************
 * PREPROCESSOR MACROS

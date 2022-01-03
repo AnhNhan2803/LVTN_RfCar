@@ -89,7 +89,7 @@
 #define NRF24L01_INT_MAX_RT_DISABLE             (0x10)   
 
 // Available Pipes fro reding mask
-#define NRF24L01_AVAILABLE_PIPES_MASK           (0xE0)  
+#define NRF24L01_AVAILABLE_PIPES_MASK           (0x0E)  
 
 /******************************************************************************
  * MACROS

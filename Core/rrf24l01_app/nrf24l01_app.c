@@ -261,7 +261,11 @@ static void nrf24l01_thread_entry(void *argument)
               memcpy(uart_tx_data, nrf24l01_data.data, ESP_COM_HEADER_SIZE + ESP_COM_PAYLOAD_LEN_SIZE + nrf24l01_data.data[2]);
               esp_com_put_data_tx_to_queue(uart_tx_data);
               PRINT_INFO_LOG("Connect to the WIFI network!\r\n");
-              nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, (uint8_t *)NRF24L01_RX_ACK_PAYLOAD, 10);
+              // Payload length = command length + True/False
+              tx_packet[2] = 1 + 1;
+              tx_packet[3] = ESP_CMD_CONNECT;
+              tx_packet[4] = 0x01;
+              nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, tx_packet, 5);
             }
             else
             {
@@ -278,7 +282,12 @@ static void nrf24l01_thread_entry(void *argument)
               // disconnect from the current wifi
               memcpy(uart_tx_data, nrf24l01_data.data, ESP_COM_HEADER_SIZE + ESP_COM_PAYLOAD_LEN_SIZE + nrf24l01_data.data[2]);
               esp_com_put_data_tx_to_queue(uart_tx_data);
-              nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, (uint8_t *)NRF24L01_RX_ACK_PAYLOAD, 10);
+
+              // Payload length = command length + True/False
+              tx_packet[2] = 1 + 1;
+              tx_packet[3] = ESP_CMD_DISCONNECT;
+              tx_packet[4] = 0x01;
+              nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, tx_packet, 5);            
             }
             else
             {
@@ -309,16 +318,17 @@ static void nrf24l01_thread_entry(void *argument)
                 // Detect get WIFI list then send back ACK payload as
                 // a ssid each time transmit a packet to RF
                 esp_status = esp_com_get_rx_data(rx_data.data, &rx_data.len);
+
                 if (esp_status == 0)
                 {
                   // Payload length = SSID length + command length + Is_available_ssid length
-                  tx_packet[2] = rx_data.len + 1 + 1;
+                  tx_packet[2] = rx_data.len - 1 + 1 + 1;
                   tx_packet[3] = ESP_CMD_GET_AVAILABLE_SSID;
                   // A byte to notify that there is available ssid or not
                   tx_packet[4] = 0x01;
                   PRINT_INFO_LOG("Available SSID detected: %s\r\n", &rx_data.data[2]);
-                  memcpy(&tx_packet[5], rx_data.data, rx_data.len);
-                  nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, tx_packet, 5 + rx_data.len);
+                  memcpy(&tx_packet[5], &rx_data.data[1], rx_data.len - 1);
+                  nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, tx_packet, 5 + rx_data.len - 1);
                 }
                 else
                 {
@@ -358,7 +368,11 @@ static void nrf24l01_thread_entry(void *argument)
               memcpy(uart_tx_data, nrf24l01_data.data, ESP_COM_HEADER_SIZE + ESP_COM_PAYLOAD_LEN_SIZE + nrf24l01_data.data[2]);
               esp_com_put_data_tx_to_queue(uart_tx_data);
               PRINT_INFO_LOG("Successfully set SSID password: %s\r\n", &uart_tx_data[4]);
-              nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, (uint8_t *)NRF24L01_RX_ACK_PAYLOAD, 10);
+              // Payload length = command length + True/False
+              tx_packet[2] = 1 + 1;
+              tx_packet[3] = ESP_CMD_SET_SSID;
+              tx_packet[4] = 0x01;
+              nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, tx_packet, 5);  
             }
             else
             {
@@ -386,14 +400,14 @@ static void nrf24l01_thread_entry(void *argument)
 
                 if (esp_status == 0)
                 {
-                  // Payload length = SSID length + command length + Is_available_ssid length
-                  tx_packet[2] = rx_data.len + 1 + 1;
-                  tx_packet[3] = ESP_CMD_GET_IP;
                   PRINT_INFO_LOG("Successfully get Local IP: %s\r\n", &rx_data.data[1]);
+                  // Payload length = SSID length + command length + Is_available_ssid length
+                  tx_packet[2] = rx_data.len - 1 + 1 + 1;
+                  tx_packet[3] = ESP_CMD_GET_IP;
                   // A byte to notify that there is available ssid or not
                   tx_packet[4] = 0x01;
-                  memcpy(&tx_packet[5], rx_data.data, rx_data.len);
-                  nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, tx_packet, 5 + rx_data.len);
+                  memcpy(&tx_packet[5], &rx_data.data[1], rx_data.len - 1);
+                  nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, tx_packet, 5 + rx_data.len - 1);
                 }
                 else
                 {
@@ -425,26 +439,36 @@ static void nrf24l01_thread_entry(void *argument)
             break;
 
           default:
-            tx_check_order++;
+            // tx_check_order++;
 
-          if (tx_check_order == 1)
-          {
-            // Send ACK payload back to the transmitter
-            nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, (uint8_t *)NRF24L01_RX_ACK_PAYLOAD, 10);
-            PRINT_INFO_LOG("Clock ACK payload for the second\r\n");
-            // Detect car control command
-            status = osMessageQueuePut(nrf24l01_msg_queue_id, &nrf24l01_data, 0xff, 0);
-            if (osOK != status)
-            {
-              // Reset the Queue in case encountered FULL FIFO scenario
-              osMessageQueueReset(nrf24l01_msg_queue_id);
-              PRINT_ERROR_LOG("Fail to put data into queue\r\n");
-            }
-          }
-          else
-          {
-            tx_check_order = 0;
-          }
+            // if (tx_check_order == 1)
+            // {
+            //   PRINT_INFO_LOG("Clock ACK payload for the the next bypass received packet\r\n");
+            //   // Send ACK payload back to the transmitter
+            //   // Payload length = command length + True/False
+            //   tx_packet[2] = 1 + 1;
+            //   tx_packet[3] = nrf24l01_data.data[3];
+            //   tx_packet[4] = 0x01;
+
+              // Detect car control command
+
+              status = osMessageQueuePut(nrf24l01_msg_queue_id, &nrf24l01_data, 0xff, 0);
+              if (osOK != status)
+              {
+                // Reset the Queue in case encountered FULL FIFO scenario
+                osMessageQueueReset(nrf24l01_msg_queue_id);
+                PRINT_ERROR_LOG("Fail to put data into queue\r\n");
+              }
+
+            //   nrf24l01_write_back_ack_payload(NRF24L01_DATA_PIPE_1, tx_packet, 5);             
+
+            // }
+            // else
+            // {
+            //   tx_check_order = 0;
+            // }
+
+            break;
         }
       }
       nrf24l01_clear_all_flags();
@@ -466,7 +490,6 @@ static void nrf24l01_thread_entry(void *argument)
 static void nrf24l01_tx_thread_entry(void *argument)
 {
     uint8_t tx_data[NRF24L01_MSG_SIZE];
-    uint8_t tx_len;
     uint8_t rx_data[NRF24L01_MSG_SIZE];
     uint8_t rx_len;
     uint8_t status;
@@ -491,7 +514,7 @@ static void nrf24l01_tx_thread_entry(void *argument)
           nrf24l01_tx_send_in_order_and_get_response(tx_data, RF_CMD_HEADER_SIZE + RF_CMD_PAYLOAD_LEN_SIZE + tx_data[2], rx_data, &rx_len);
           // Transmit to PC for data display
           status = CDC_Transmit_FS(rx_data, rx_len);
-          PRINT_INFO_LOG("USB Transmit status - %d\r\n", status):
+          PRINT_INFO_LOG("USB Transmit status - %d\r\n", status);
         }
         
       }
@@ -508,7 +531,7 @@ static void nrf24l01_tx_thread_entry(void *argument)
 *******************************************************************************/
 static void nrf24l01_tx_send_in_order_and_get_response(uint8_t * tx_data, uint8_t tx_len, uint8_t * rx_data, uint8_t * rx_len)
 {
-  bool is_received_response = false;
+  // bool is_received_response = false;
   uint8_t status;
   uint32_t start_tick;
 

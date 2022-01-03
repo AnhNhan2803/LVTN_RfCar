@@ -154,7 +154,7 @@ bool esp_com_put_data_into_queue(uint8_t * pdata)
 {
 #if (DEVICE_ROLE == DEVICE_ROLE_RX)
     int next;
-    ESP_COM_CS_ENTER(osWaitForever);
+    // ESP_COM_CS_ENTER(osWaitForever);
     // next is where head will point to after this write. 
     next = esp_com_data.head + esp_com_data.elem;  
     if (next >= esp_com_data.maxlen)
@@ -171,14 +171,14 @@ bool esp_com_put_data_into_queue(uint8_t * pdata)
         esp_com_data.head = 0;
         esp_com_data.tail = 0;
         esp_com_data.cnt = 0;
-        ESP_COM_CS_EXIT();    
+        // ESP_COM_CS_EXIT();    
         return false;
     }
 
     memcpy(&(esp_com_data.buffer[esp_com_data.head]), pdata, esp_com_data.elem); // Load data and then move
     esp_com_data.head = next;                                  // head to next data offset.
     esp_com_data.cnt++;
-    ESP_COM_CS_EXIT();
+    // ESP_COM_CS_EXIT();
 #endif
     return true; 
 }
@@ -194,11 +194,11 @@ bool esp_com_get_data_from_queue(uint8_t * pdata)
 {
 #if (DEVICE_ROLE == DEVICE_ROLE_RX)
     int next;
-    ESP_COM_CS_ENTER(osWaitForever);
+    // ESP_COM_CS_ENTER(osWaitForever);
     // if the head == tail, we don't have any data
     if (esp_com_data.head == esp_com_data.tail)  
     {
-        ESP_COM_CS_EXIT();    
+        // ESP_COM_CS_EXIT();    
         return false;
     }
 
@@ -214,7 +214,7 @@ bool esp_com_get_data_from_queue(uint8_t * pdata)
 
     esp_com_data.tail = next;      
     esp_com_data.cnt--;       
-    ESP_COM_CS_EXIT();    
+    // ESP_COM_CS_EXIT();    
 #endif
     return true;  
 }

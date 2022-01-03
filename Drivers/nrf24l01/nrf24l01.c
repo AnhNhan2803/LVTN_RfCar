@@ -252,7 +252,7 @@ bool nrf24l01_read_data_fifo(uint8_t * pdata, uint8_t * len)
   uint8_t value;
   uint8_t rx_buff[32]; 
 
-  // Check if it's RX FIOF empty
+  // Check if it's RX FIFO empty
   nrf24l01_read_regs(NRF24L01_REG_STATUS, &value, 1);
   if(((value & NRF24L01_AVAILABLE_PIPES_MASK) >> 1) < NRF24L01_TOTAL_PIPES)
   {
@@ -280,6 +280,7 @@ bool nrf24l01_read_data_fifo(uint8_t * pdata, uint8_t * len)
       // TODO: Add max length condition to avoid
       // buffer overflow
       memcpy(pdata, &rx_buff[1], *len);
+			PRINT_INFO_LOG("Coppy successfully the rx packet\r\n");
     }
   }
   else
